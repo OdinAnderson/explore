@@ -11,9 +11,8 @@ const CACHE   = 'explore-v1';
 const SHELL   = [
   '/',
   '/manifest.json',
-  '/icons/icon.svg',
-  '/icons/icon-maskable.svg',
-  '/icons/favicon.svg',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
 ];
 
 // ── Install: pre-cache the shell ──────────────────────────────────────────────
