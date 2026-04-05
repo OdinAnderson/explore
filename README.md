@@ -17,6 +17,48 @@ Hosted on **Azure Static Web Apps** (Free tier) — global CDN, free SSL, auto-d
 
 ---
 
+## From an existing GitHub repository
+
+Already have `projectX` as a basic web page in its own GitHub repo? Here are the major steps to host it here:
+
+1. **Copy your project files** into `apps/projectX/` in this repo:
+   ```bash
+   # Clone your repo into a temp location, then copy the files over
+   git clone https://github.com/you/projectX /tmp/projectX
+   cp -r /tmp/projectX/. apps/projectX/
+   rm -rf /tmp/projectX
+   ```
+   > Alternatively, download a ZIP from GitHub (`Code → Download ZIP`) and unzip into `apps/projectX/`.
+
+2. **Confirm `apps/projectX/index.html` exists** — Azure Static Web Apps serves `index.html` automatically.  
+   If your entry point has a different name, rename it to `index.html`.
+
+3. **Add a card to the landing page** (`index.html` in the repo root) inside the `🌐 Public` grid:
+   ```html
+   <a class="card" href="/apps/projectX/">
+     <div class="card-icon">🔬</div>
+     <div class="card-title">Project X</div>
+     <div class="card-desc">One-line description of what it does.</div>
+     <div class="card-footer">
+       <span class="tag tag-public">Public</span>
+       <span class="card-arrow">→</span>
+     </div>
+   </a>
+   ```
+
+4. **Commit and push:**
+   ```bash
+   git add apps/projectX/ index.html
+   git commit -m "Add: projectX"
+   git push
+   ```
+
+5. ✅ **Live in ~1 minute** at `https://explore.odinz.net/apps/projectX/`
+
+> **Keeping it up to date:** Your original GitHub repo remains the source of truth. When `projectX` changes, re-copy the updated files into `apps/projectX/` and push again.
+
+---
+
 ## Promoting an experiment
 
 You built something locally. Here's how to get it live — pick the pattern that fits:
