@@ -11,27 +11,33 @@
       - Entra ID app registration for MSAL
 
 .PREREQUISITES
-    - Azure CLI installed and logged in  (az login)
-    - GitHub CLI installed and authenticated  (gh auth login)
+    - Azure CLI installed  (winget install Microsoft.AzureCLI)
+    - GitHub CLI installed and authenticated as OdinAnderson  (gh auth status)
     - You own the domain explore.odinz.net (DNS access required for custom domain step)
 
+    LOGIN TIPS — if you have multiple Azure accounts:
+      az login                                          # browser picks account interactively
+      az account list --output table                    # see all subscriptions
+      az account set --subscription "Visual Studio ..."  # select the right one
+
 .EXAMPLE
-    ./setup-azure.ps1 -GitHubOrg "yourGitHubUsername" -GitHubRepo "play-odinz-net"
+    # Simplest — defaults match the explore.odinz.net project:
+    ./setup-azure.ps1
+
+    # Override GitHub org if needed:
+    ./setup-azure.ps1 -GitHubOrg "OdinAnderson"
 #>
 
 param(
-    [Parameter(Mandatory)]
-    [string]$GitHubOrg,          # e.g. "johndoe"
-
-    [Parameter(Mandatory)]
-    [string]$GitHubRepo,         # e.g. "play-odinz-net"
-
-    [string]$ResourceGroup       = "play-odinz-rg",
+    [string]$GitHubOrg           = "OdinAnderson",
+    [string]$GitHubRepo          = "explore",
+    [string]$GitHubBranch        = "master",          # repo was pushed to master
+    [string]$ResourceGroup       = "explore-odinz-rg",
     [string]$Location            = "eastus2",
-    [string]$SwaName             = "play-odinz-swa",
-    [string]$CaeName             = "play-odinz-cae",
+    [string]$SwaName             = "explore-odinz-swa",
+    [string]$CaeName             = "explore-odinz-cae",
     [string]$Domain              = "explore.odinz.net",
-    [string]$EntraAppName        = "play-odinz-msal"
+    [string]$EntraAppName        = "explore-odinz-msal"
 )
 
 Set-StrictMode -Version Latest
@@ -41,13 +47,30 @@ function Step([string]$msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 function Ok([string]$msg)   { Write-Host "    ✓ $msg"  -ForegroundColor Green }
 
 # ---------------------------------------------------------------------------
-# 0. Confirm subscription
+# 0. Ensure logged in and pick the right subscription
 # ---------------------------------------------------------------------------
-Step "Active Azure subscription"
-$sub = az account show --query "{name:name, id:id}" -o json | ConvertFrom-Json
-Write-Host "    Subscription : $($sub.name)"
-Write-Host "    ID           : $($sub.id)"
-$confirm = Read-Host "    Continue with this subscription? [Y/n]"
+Step "Checking Azure login"
+$loginCheck = az account show -o json 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "    Not logged in. Opening browser..." -ForegroundColor Yellow
+    az login -o none
+}
+
+Step "Available subscriptions"
+az account list --output table
+Write-Host ""
+$subChoice = Read-Host "    Enter subscription name or ID to use (ENTER to keep current)"
+if ($subChoice) {
+    az account set --subscription $subChoice
+    if ($LASTEXITCODE -ne 0) { Write-Host "    Failed to set subscription." -ForegroundColor Red; exit 1 }
+}
+
+$sub = az account show --query "{name:name, id:id, tenantId:tenantId}" -o json | ConvertFrom-Json
+Write-Host ""
+Write-Host "    Subscription : $($sub.name)" -ForegroundColor White
+Write-Host "    ID           : $($sub.id)"   -ForegroundColor White
+Write-Host "    Tenant       : $($sub.tenantId)" -ForegroundColor White
+$confirm = Read-Host "    Proceed with this subscription? [Y/n]"
 if ($confirm -and $confirm -notmatch '^[Yy]') { exit 1 }
 
 # ---------------------------------------------------------------------------
@@ -66,7 +89,7 @@ $swa = az staticwebapp create `
     --resource-group $ResourceGroup `
     --location $Location `
     --sku Free `
-    --branch main `
+    --branch $GitHubBranch `
     --source "https://github.com/$GitHubOrg/$GitHubRepo" `
     --login-with-github `
     --output json | ConvertFrom-Json
