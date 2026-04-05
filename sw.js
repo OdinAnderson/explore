@@ -7,7 +7,7 @@
  *   Offline                      → Serve cached landing page if available
  */
 
-const CACHE   = 'explore-v1';
+const CACHE   = 'explore-v2';
 const SHELL   = [
   '/',
   '/manifest.json',

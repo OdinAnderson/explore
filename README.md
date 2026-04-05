@@ -3,7 +3,17 @@
 AI experiments hosted at [explore.odinz.net](https://explore.odinz.net).  
 *Build · Break · Repeat*
 
-Hosted on **Azure Static Web Apps** (Free tier) — global CDN, free SSL, auto-deploy from `main` via GitHub Actions.
+Hosted on **Azure Static Web Apps** (Free tier) — global CDN, free SSL, auto-deploy from `master` via GitHub Actions.
+
+---
+
+## Live URLs
+
+| | URL |
+|---|---|
+| **Custom domain** | https://explore.odinz.net |
+| **Azure default** | https://ambitious-ocean-002e3fd0f.2.azurestaticapps.net |
+| **GitHub repo** | https://github.com/OdinAnderson/explore |
 
 ---
 
@@ -115,19 +125,38 @@ That's it. SWA handles the Entra ID login flow — no code changes to your exper
 
 ## Azure Resources
 
-| Resource | Name |
-|---|---|
-| Resource Group | `explore-odinz-rg` |
-| Static Web App | `explore-odinz-swa` |
-| Container Apps Env | `explore-odinz-cae` |
+| Resource | Name | Notes |
+|---|---|---|
+| Resource Group | `explore-odinz-rg` | East US 2 |
+| Static Web App | `explore-odinz-swa` | Free tier, linked to this repo (`master` branch) |
+| GitHub Secret | `AZURE_STATIC_WEB_APPS_API_TOKEN_AMBITIOUS_OCEAN_002E3FD0F` | Auto-deploy token |
 
-Run `./setup-azure.ps1 -GitHubOrg <you> -GitHubRepo <repo>` to provision everything.
+### Re-provisioning from scratch
+
+```powershell
+# Requires: az login, gh auth login (as OdinAnderson)
+cd C:\repos\play-odinz-net
+./setup-azure.ps1
+# All defaults are pre-configured — just follow the prompts
+```
+
+---
+
+## PWA
+
+The landing page is a Progressive Web App — installable on iPhone and Android:
+- **iOS**: Safari → Share → Add to Home Screen
+- **Android**: Chrome → ⋮ → Add to Home Screen
+
+Icons: `icons/icon-192.png` and `icons/icon-512.png` (the pixel 'e' from the hero header).
+
+> If you update the icons, bump the cache version in `sw.js` (`explore-v2` → `explore-v3` etc.) so existing installs pick up the change.
 
 ---
 
 ## Mobile
 
-The landing page targets modern iPhones (375px+) with Chrome/Edge.  
+The landing page targets modern iPhones (375px+) with Chrome/Edge/Safari.  
 Experiments under `apps/` are responsible for their own mobile layout.  
 Recommended viewport tag for any experiment:
 
