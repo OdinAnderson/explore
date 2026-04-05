@@ -1,0 +1,1845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spacecraft Flight Simulator</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #05080f;
+  --bg2: #090d1a;
+  --card: #0c1422;
+  --card2: #111c30;
+  --border: #1b2d46;
+  --border2: #243a56;
+  --text: #d8e8f5;
+  --text2: #7a96b4;
+  --text3: #3f5978;
+  --accent: #38bdf8;
+  --green: #34d399;
+  --amber: #fbbf24;
+  --purple: #a78bfa;
+  --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: 'Consolas', 'SF Mono', 'Courier New', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  line-height: 1.55;
+}
+
+/* Star field */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 7% 14%, rgba(255,255,255,.55) 0%, transparent 100%),
+    radial-gradient(1px 1px at 23% 72%, rgba(255,255,255,.35) 0%, transparent 100%),
+    radial-gradient(1px 1px at 41% 5%, rgba(255,255,255,.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 58% 88%, rgba(255,255,255,.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 76% 32%, rgba(255,255,255,.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 90% 60%, rgba(255,255,255,.35) 0%, transparent 100%),
+    radial-gradient(1px 1px at 13% 46%, rgba(255,255,255,.45) 0%, transparent 100%),
+    radial-gradient(1px 1px at 34% 91%, rgba(255,255,255,.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 62% 22%, rgba(255,255,255,.55) 0%, transparent 100%),
+    radial-gradient(1px 1px at 85% 79%, rgba(255,255,255,.4) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 50% 50%, rgba(255,255,255,.25) 0%, transparent 100%),
+    radial-gradient(1px 1px at 18% 95%, rgba(255,255,255,.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 93% 10%, rgba(255,255,255,.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 47% 38%, rgba(255,255,255,.35) 0%, transparent 100%),
+    radial-gradient(1px 1px at 71% 55%, rgba(255,255,255,.45) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+}
+
+/* ── HEADER ─────────────────────────────────────────── */
+header {
+  padding: 30px 0 18px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+}
+header h1 {
+  font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(130deg, #38bdf8 10%, #818cf8 55%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+header p {
+  color: var(--text2);
+  margin-top: 7px;
+  font-size: 0.93rem;
+}
+
+/* ── PRESETS ─────────────────────────────────────────── */
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 18px;
+  justify-content: center;
+}
+.preset-btn {
+  padding: 6px 13px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.15s;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}
+.preset-btn .tag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  display: block;
+  margin-bottom: 1px;
+  opacity: 0.7;
+}
+.preset-btn.racer-x { color: #38bdf8; border-color: rgba(56,189,248,.25); }
+.preset-btn.racer-x:hover,
+.preset-btn.racer-x.active { background: rgba(56,189,248,.12); border-color: #38bdf8; }
+.preset-btn.racer-y { color: #34d399; border-color: rgba(52,211,153,.25); }
+.preset-btn.racer-y:hover,
+.preset-btn.racer-y.active { background: rgba(52,211,153,.12); border-color: #34d399; }
+.preset-btn.racer-z { color: #a78bfa; border-color: rgba(167,139,250,.25); }
+.preset-btn.racer-z:hover,
+.preset-btn.racer-z.active { background: rgba(167,139,250,.12); border-color: #a78bfa; }
+.preset-btn.laser-x { color: #fb923c; border-color: rgba(251,146,60,.25); }
+.preset-btn.laser-x:hover,
+.preset-btn.laser-x.active { background: rgba(251,146,60,.12); border-color: #fb923c; }
+
+/* ── MAIN LAYOUT ─────────────────────────────────────── */
+.main {
+  display: grid;
+  grid-template-columns: 295px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .main { grid-template-columns: 1fr; }
+}
+
+/* ── CONTROLS ────────────────────────────────────────── */
+.controls {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  position: sticky;
+  top: 16px;
+  z-index: 20;
+}
+.controls-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text3);
+  margin-bottom: 14px;
+}
+.field-group {
+  margin-bottom: 12px;
+}
+.field-group > label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text2);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+.field-row {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+input[type="number"],
+select {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 0.86rem;
+  font-family: var(--mono);
+  outline: none;
+  transition: border-color 0.15s;
+  -moz-appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+input[type="number"]:focus,
+select:focus { border-color: var(--accent); }
+input[type="number"] { flex: 1; min-width: 0; }
+select { font-family: var(--font); cursor: pointer; }
+.unit { color: var(--text2); font-size: 0.79rem; white-space: nowrap; align-self: center; padding-left: 2px; }
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.84rem;
+  color: var(--text);
+  cursor: pointer;
+}
+input[type="radio"],
+input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; }
+
+.toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.84rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* ── HELP TOOLTIP ────────────────────────────────────── */
+.help-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text3);
+  font-size: 0.62rem;
+  font-weight: 800;
+  font-style: normal;
+  cursor: help;
+  position: relative;
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1;
+}
+.help-tip:hover {
+  background: var(--border2);
+  color: var(--text);
+}
+/* arrow */
+.help-tip::before {
+  content: '';
+  position: absolute;
+  left: calc(100% + 7px);
+  top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-right-color: var(--border2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s 0.08s;
+  z-index: 101;
+}
+/* bubble */
+.help-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 17px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #080f1c;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.77rem;
+  font-weight: 400;
+  color: var(--text);
+  white-space: normal;
+  width: 240px;
+  line-height: 1.6;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s 0.08s;
+  font-family: var(--font);
+  box-shadow: 0 8px 28px rgba(0,0,0,.7);
+  letter-spacing: 0;
+}
+.help-tip:hover::before,
+.help-tip:hover::after { opacity: 1; }
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 14px 0;
+}
+
+/* ── LASER SAIL PARAMS ───────────────────────────────── */
+.laser-section-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fb923c;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.computed-field {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: #fb923c;
+  padding: 6px 8px;
+  font-size: 0.84rem;
+  font-family: var(--mono);
+  flex: 1;
+  min-width: 0;
+  opacity: 0.85;
+}
+.laser-info-box {
+  margin-top: 14px;
+  background: rgba(251,146,60,.06);
+  border: 1px solid rgba(251,146,60,.25);
+  border-radius: 7px;
+  padding: 11px 12px;
+}
+.laser-info-box .rocket-box-title { color: #fb923c; }
+
+.sim-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: 7px;
+  border: none;
+  background: linear-gradient(135deg, #1e40af, #5b21b6);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+  letter-spacing: 0.04em;
+  box-shadow: 0 0 20px rgba(99,102,241,.25);
+}
+.sim-btn:hover { opacity: 0.9; box-shadow: 0 0 28px rgba(99,102,241,.4); }
+.sim-btn:active { transform: scale(0.98); }
+
+.rocket-box {
+  margin-top: 14px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 11px 12px;
+}
+.rocket-box-title {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  margin-bottom: 7px;
+}
+#rocket-preview {
+  font-size: 0.8rem;
+  font-family: var(--mono);
+  color: var(--text2);
+  line-height: 2;
+}
+
+/* ── RESULTS ─────────────────────────────────────────── */
+.placeholder {
+  background: var(--card);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 80px 20px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 0.9rem;
+}
+.placeholder span { display: block; font-size: 2rem; margin-bottom: 10px; opacity: 0.3; }
+
+#results-content { animation: fadeIn .35s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.scenario-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.scenario-name {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.badge {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid var(--border);
+}
+.badge.rel { background: rgba(167,139,250,.15); border-color: rgba(167,139,250,.5); color: #a78bfa; }
+.badge.warn { background: rgba(251,191,36,.12); border-color: rgba(251,191,36,.4); color: #fbbf24; }
+.badge.ok { background: rgba(52,211,153,.12); border-color: rgba(52,211,153,.4); color: #34d399; }
+
+/* ── METRICS GRID ────────────────────────────────────── */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+  gap: 9px;
+  margin-bottom: 14px;
+}
+.metric-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px 13px;
+  transition: border-color .2s;
+}
+.metric-card:hover { border-color: var(--border2); }
+.metric-label {
+  font-size: 0.67rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text3);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.metric-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: var(--mono);
+  line-height: 1.25;
+  word-break: break-word;
+}
+.metric-sub {
+  font-size: 0.7rem;
+  color: var(--text2);
+  margin-top: 3px;
+}
+
+/* ── CHART TABS ──────────────────────────────────────── */
+.chart-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+  gap: 2px;
+  position: relative;
+  z-index: 10;
+  overflow: visible;
+}
+.tab {
+  padding: 7px 15px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: all 0.15s;
+  margin-bottom: -1px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  position: relative;
+  overflow: visible;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab[hidden] { display: none; }
+/* Tab help-tips open downward instead of rightward */
+.tab .help-tip::before {
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%);
+  border-right-color: transparent;
+  border-bottom-color: var(--border2);
+}
+.tab .help-tip::after {
+  left: 50%;
+  top: calc(100% + 16px);
+  transform: translateX(-50%);
+  width: 230px;
+}
+
+/* ── CHART CONTAINERS ────────────────────────────────── */
+.chart-wrap {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  padding: 16px;
+  height: 310px;
+  position: relative;
+}
+@media (max-width: 500px) {
+  .chart-wrap { height: 240px; padding: 10px; }
+}
+
+/* ── BEAM CUTOFF EXPLANATION BANNER ─────────────────── */
+.cutoff-note {
+  margin-top: 10px;
+  background: rgba(251,146,60,.07);
+  border: 1px solid rgba(251,146,60,.28);
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--text2);
+  display: none; /* shown by JS */
+}
+.cutoff-note strong { color: #fb923c; }
+.cutoff-note .cutoff-formula {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  background: rgba(251,146,60,.1);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin: 2px 0;
+  color: #fdba74;
+}
+
+/* ── PHYSICS REFERENCE ───────────────────────────────── */
+.physics-ref {
+  margin-top: 24px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.physics-ref summary {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text2);
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.physics-ref summary::before { content: '▶'; font-size: 0.6rem; transition: transform .2s; }
+.physics-ref[open] summary::before { transform: rotate(90deg); }
+.physics-ref summary::-webkit-details-marker { display: none; }
+.physics-ref .ref-body {
+  padding: 0 16px 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+.ref-section h4 {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text3);
+  margin-bottom: 7px;
+}
+.ref-section p {
+  font-size: 0.82rem;
+  color: var(--text2);
+  font-family: var(--mono);
+  line-height: 1.9;
+}
+.ref-section p strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>&#128640; Spacecraft Flight Simulator</h1>
+    <p>Interplanetary &amp; interstellar scenarios — classical kinematics + special relativity</p>
+  </header>
+
+  <!-- PRESETS -->
+  <div class="presets">
+    <button class="preset-btn racer-x" onclick="loadPreset('rx-close')">
+      <span class="tag">RACER-X</span>Mars Close Approach
+    </button>
+    <button class="preset-btn racer-x" onclick="loadPreset('rx-far')">
+      <span class="tag">RACER-X</span>Mars Far Approach
+    </button>
+    <button class="preset-btn racer-y" onclick="loadPreset('ry-brach')">
+      <span class="tag">RACER-Y</span>Neptune Brachistochrone
+    </button>
+    <button class="preset-btn racer-y" onclick="loadPreset('ry-dart')">
+      <span class="tag">RACER-Y</span>Neptune Dart
+    </button>
+    <button class="preset-btn racer-z" onclick="loadPreset('rz-proxima')">
+      <span class="tag">RACER-Z</span>Proxima Centauri (1g)
+    </button>
+    <button class="preset-btn laser-x" onclick="loadPreset('lx-cubesat')">
+      <span class="tag">LASER-X</span>CubeSat → Mars
+    </button>
+    <button class="preset-btn laser-x" onclick="loadPreset('lx-probe')">
+      <span class="tag">LASER-X</span>Probe → Neptune
+    </button>
+    <button class="preset-btn laser-x" onclick="loadPreset('lx-crew')">
+      <span class="tag">LASER-X</span>Crew Module → Proxima
+    </button>
+  </div>
+
+  <div class="main">
+
+    <!-- CONTROLS -->
+    <aside class="controls">
+      <div class="controls-title">Mission Parameters</div>
+
+      <div class="field-group">
+        <label>Distance</label>
+        <div class="field-row">
+          <input type="number" id="dist-val" value="0.374" step="any" min="0.0001">
+          <select id="dist-unit">
+            <option value="km">km</option>
+            <option value="AU" selected>AU</option>
+            <option value="ly">ly</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ── Rocket-propulsion fields (hidden for laser sail) ── -->
+      <div id="rocket-params">
+        <div class="field-group">
+          <label>Acceleration</label>
+          <div class="field-row">
+            <input type="number" id="accel" value="0.02" step="any" min="0.00001">
+            <span class="unit">m/s²</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label>Specific Impulse (Isp)
+            <span class="help-tip" data-tip="Isp measures engine efficiency — how much thrust you get per unit of propellant per second. Higher Isp means less fuel burned for the same Δv. Chemical rockets: ~450 s. Ion drives: 1,000–10,000 s. The exhaust velocity v_e = Isp × 9.81 m/s, which feeds directly into the rocket equation.">?</span>
+          </label>
+          <div class="field-row">
+            <input type="number" id="isp" value="2500" step="1" min="10">
+            <span class="unit">s</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label>Mass Ratio (m₀ / m₁)
+            <span class="help-tip" data-tip="The ratio of fully-fuelled mass (m₀) to dry mass (m₁). A ratio of 10 means 90% of the ship's launch mass is propellant. The rocket equation (Δv = v_e × ln(ratio)) means doubling your Δv requires squaring your mass ratio — fuel costs grow exponentially with speed.">?</span>
+          </label>
+          <div class="field-row">
+            <input type="number" id="mass-ratio" value="13" step="0.1" min="1.001">
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="field-group">
+          <label>Mission Mode</label>
+          <div class="radio-group">
+            <label><input type="radio" name="mode" value="brachistochrone" checked> Brachistochrone (flip &amp; decelerate)</label>
+            <label><input type="radio" name="mode" value="dart"> Dart (full acceleration)</label>
+          </div>
+        </div>
+
+        <div class="field-group toggle-group">
+          <label class="toggle-label">
+            <input type="checkbox" id="use-relativistic"> Relativistic physics (SR)
+            <span class="help-tip" data-tip="Applies Einstein's Special Relativity. At high speeds (v &gt; 10% of c), classical physics is wrong — SR replaces it with dv/dt = a/γ³, so the ship asymptotically approaches c but never reaches it. The crew ages more slowly than observers on Earth: this gap is time dilation, and it grows dramatically near c.">?</span>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" id="infinite-prop"> Infinite propellant
+            <span class="help-tip" data-tip="Bypasses the rocket equation. Real rockets are limited by how much propellant they can carry — a higher mass ratio means more fuel but diminishing returns. Toggling this removes that ceiling entirely, modelling a hypothetical drive (fusion, antimatter, photon sail) with no fuel budget. Required for the Racer-Z 1g interstellar scenario.">?</span>
+          </label>
+        </div>
+      </div><!-- #rocket-params -->
+
+      <!-- ── Laser-sail fields (hidden until a Laser-X preset is loaded) ── -->
+      <div id="laser-params" hidden>
+        <div class="laser-section-title">&#9889; Laser Sail Parameters</div>
+
+        <div class="field-group">
+          <label>Spacecraft Mass
+            <span class="help-tip" data-tip="Dry mass of the craft plus payload. Laser sails carry no propellant, so this is the entire launch mass. Acceleration = (1+R)·P / (m·c), so lighter is faster for the same laser power.">?</span>
+          </label>
+          <div class="field-row">
+            <input type="number" id="ls-mass" value="10" step="any" min="0.001">
+            <span class="unit">kg</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label>Laser Power
+            <span class="help-tip" data-tip="Total optical power of the ground/orbital laser array directed at the sail. Thrust = P/c for an absorber, or 2P/c for a perfect mirror. 30 GW → ~1g for a 10 kg craft. Real proposals (Breakthrough Starshot) target 100 GW for gram-scale chips.">?</span>
+          </label>
+          <div class="field-row">
+            <input type="number" id="ls-power-val" value="30" step="any" min="0.001">
+            <select id="ls-power-unit">
+              <option value="GW">GW</option>
+              <option value="TW">TW</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label>Sail Area
+            <span class="help-tip" data-tip="Physical area of the reflective sail membrane. Larger sails capture more photons but also increase mass. The beam cutoff distance — where beam footprint equals sail area — determines how far the laser effectively pushes the craft.">?</span>
+          </label>
+          <div class="field-row">
+            <input type="number" id="ls-sail-area" value="100" step="any" min="0.01">
+            <span class="unit">m²</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label>Reflectivity (R)
+            <span class="help-tip" data-tip="Fraction of photons reflected (vs absorbed). R=0 → absorber, thrust = P/c. R=1 → perfect mirror, thrust = 2P/c (double momentum transfer). High reflectivity is essential to avoid melting, but perfect mirrors don't exist. Typical target: R ≥ 0.999.">?</span>
+          </label>
+          <div class="field-row">
+            <input type="number" id="ls-reflectivity" value="0" step="0.001" min="0" max="0.9999">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label>Beam Divergence
+            <span class="help-tip" data-tip="Half-angle spread of the laser beam in micro-radians (µrad). Smaller = tighter beam = laser stays focused longer. The beam cutoff distance d = sail_radius / divergence_rad. Beyond this, beam footprint exceeds sail area and effective power drops as 1/d².">?</span>
+          </label>
+          <div class="field-row">
+            <input type="number" id="ls-divergence" value="0.01" step="any" min="0">
+            <span class="unit">µrad</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label>Max Sail Flux
+            <span class="help-tip" data-tip="Thermal limit of the sail material — the maximum laser intensity it can handle before melting or degrading. Measured in GW/m². Carbon-based sails: ~0.05–1 GW/m². If the laser power density exceeds this, the sail is destroyed.">?</span>
+          </label>
+          <div class="field-row">
+            <input type="number" id="ls-max-flux" value="1" step="any" min="0.001">
+            <span class="unit">GW/m²</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label>Computed Acceleration</label>
+          <div class="field-row">
+            <div class="computed-field" id="ls-accel-computed">—</div>
+            <span class="unit">m/s²</span>
+          </div>
+        </div>
+
+        <div class="field-group toggle-group">
+          <label class="toggle-label">
+            <input type="checkbox" id="ls-use-relativistic"> Relativistic physics (SR)
+            <span class="help-tip" data-tip="Applies Einstein's Special Relativity. At high speeds (v &gt; 10% of c), classical physics is wrong — SR replaces it with dv/dt = a/γ³, so the ship asymptotically approaches c but never reaches it. The crew ages more slowly than observers on Earth: this gap is time dilation, and it grows dramatically near c.">?</span>
+          </label>
+        </div>
+      </div><!-- #laser-params -->
+
+      <hr class="divider">
+
+      <button class="sim-btn" onclick="runSimulation()">&#9654; Run Simulation</button>
+
+      <div id="rocket-info-box" class="rocket-box">
+        <div class="rocket-box-title">Rocket Equation Preview</div>
+        <div id="rocket-preview">—</div>
+      </div>
+      <div id="laser-info-box" class="laser-info-box" hidden>
+        <div class="rocket-box-title">Laser Sail Preview</div>
+        <div id="laser-preview" style="font-size:0.8rem;font-family:var(--mono);color:var(--text2);line-height:2;">—</div>
+      </div>
+    </aside>
+
+    <!-- RESULTS -->
+    <main class="results">
+      <div id="no-results" class="placeholder">
+        <span>&#128752;</span>
+        Select a preset or enter parameters and click "Run Simulation"
+      </div>
+
+      <div id="results-content" hidden>
+        <div class="scenario-header">
+          <span class="scenario-name" id="scenario-name">—</span>
+          <span class="badge" id="badge-mode">—</span>
+          <span class="badge" id="badge-physics">—</span>
+          <span class="badge" id="badge-warn" hidden>—</span>
+        </div>
+
+        <div class="metrics-grid" id="metrics-grid"></div>
+
+        <div class="chart-tabs">
+          <button class="tab active" onclick="showTab('velocity')">Velocity Profile
+            <span class="help-tip" data-tip="Speed of the spacecraft over time, in km/s. For a brachistochrone the curve rises to a peak at the halfway flip point, then mirrors back to zero. For a dart it rises continuously to final arrival speed. Hover the chart to see the 🚀 at any moment.">?</span>
+          </button>
+          <button class="tab" onclick="showTab('position')">Position vs Time
+            <span class="help-tip" data-tip="Distance covered from departure, plotted over Earth-frame time. A brachistochrone produces a smooth S-curve (fastest rate of change at the midpoint flip). A dart produces a steeper curve that keeps climbing. Units auto-scale: km → AU → light-years.">?</span>
+          </button>
+          <button id="tab-gamma" class="tab" onclick="showTab('gamma')" hidden>Lorentz Factor &#947;
+            <span class="help-tip" data-tip="γ (gamma) is how much time and mass scale due to Special Relativity. γ = 1/√(1 − v²/c²). At rest γ = 1 (no effect). At 87% c, γ = 2 (ship clock runs at half speed). At 99% c, γ ≈ 7. Time dilation = 1 − 1/γ, so the higher the curve, the more the crew ages slowly relative to Earth. Only shown when relativistic mode is on.">?</span>
+          </button>
+        </div>
+
+        <div class="chart-wrap" id="chart-velocity"><canvas id="cv-velocity"></canvas></div>
+        <div class="chart-wrap" id="chart-position" hidden><canvas id="cv-position"></canvas></div>
+        <div class="chart-wrap" id="chart-gamma" hidden><canvas id="cv-gamma"></canvas></div>
+
+        <!-- Beam-divergence cutoff explanation — shown only for laser sail runs with a visible cutoff -->
+        <div class="cutoff-note" id="cutoff-note"></div>
+      </div>
+
+      <!-- Physics Reference -->
+      <details class="physics-ref">
+        <summary>Physics Reference</summary>
+        <div class="ref-body">
+          <div class="ref-section">
+            <h4>Brachistochrone (flip &amp; brake)</h4>
+            <p>
+              <strong>t</strong> = 2 × √(d / a)<br>
+              <strong>v_max</strong> = √(a × d / 2)<br>
+              <strong>Δv</strong> = 2 × v_max<br>
+              <strong>Δτ</strong> ≈ Δt (non-rel) | ∫dt/γ (rel)
+            </p>
+          </div>
+          <div class="ref-section">
+            <h4>Dart (full acceleration)</h4>
+            <p>
+              <strong>t</strong> = √(2d / a)<br>
+              <strong>v_final</strong> = a × t<br>
+              <strong>Δv</strong> = v_final
+            </p>
+          </div>
+          <div class="ref-section">
+            <h4>Rocket Equation</h4>
+            <p>
+              <strong>Δv</strong> = Isp × g₀ × ln(m₀/m₁)<br>
+              <strong>v_e</strong> = Isp × 9.81 m/s²<br>
+              <strong>prop %</strong> = 1 − 1/mass_ratio
+            </p>
+          </div>
+          <div class="ref-section">
+            <h4>Special Relativity</h4>
+            <p>
+              <strong>dv/dt</strong> = a_proper / γ³<br>
+              <strong>γ</strong> = 1 / √(1 − v²/c²)<br>
+              <strong>dτ</strong> = dt / γ &nbsp;(proper time)<br>
+              Auto-applied when v &gt; 0.1c
+            </p>
+          </div>
+          <div class="ref-section">
+            <h4>Laser Sail (Photon Thrust)</h4>
+            <p>
+              <strong>F</strong> = (1+R)·P / c<br>
+              <strong>a</strong> = F / m<br>
+              <strong>P_req</strong> = m·a·c / (1+R)<br>
+              <strong>d_cutoff</strong> = r_sail / θ_div<br>
+              <strong>P_eff</strong> = P·(d_cutoff/x)² beyond cutoff<br>
+              <strong>recoil</strong> = P / c &nbsp;(on laser platform)
+            </p>
+          </div>
+        </div>
+      </details>
+    </main>
+
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ──────────────────────────────────────────────────────────────
+// CONSTANTS
+// ──────────────────────────────────────────────────────────────
+const C    = 299792458;           // m/s
+const G0   = 9.80665;             // m/s²
+const AU   = 1.495978707e11;      // m
+const LY   = 9.4607304725808e15;  // m
+const YEAR = 365.25 * 86400;      // s
+const DAY  = 86400;               // s
+const HOUR = 3600;                // s
+
+// ──────────────────────────────────────────────────────────────
+// PRESETS
+// ──────────────────────────────────────────────────────────────
+const PRESETS = {
+  'rx-close': {
+    label: 'Racer-X: Mars (Close Approach)',
+    cls: 'racer-x', color: '#38bdf8',
+    d: 5.6e10, a: 0.02, isp: 2500, massRatio: 13,
+    mode: 'brachistochrone', infinite: false, relativistic: false,
+  },
+  'rx-far': {
+    label: 'Racer-X: Mars (Far Approach)',
+    cls: 'racer-x', color: '#38bdf8',
+    d: 4.0e11, a: 0.02, isp: 2500, massRatio: 13,
+    mode: 'brachistochrone', infinite: false, relativistic: false,
+  },
+  'ry-brach': {
+    label: 'Racer-Y: Neptune Brachistochrone',
+    cls: 'racer-y', color: '#34d399',
+    d: 4.5e12, a: 6e-4, isp: 2500, massRatio: 20,
+    mode: 'brachistochrone', infinite: false, relativistic: false,
+  },
+  'ry-dart': {
+    label: 'Racer-Y: Neptune Dart',
+    cls: 'racer-y', color: '#34d399',
+    d: 4.5e12, a: 6e-4, isp: 2500, massRatio: 20,
+    mode: 'dart', infinite: false, relativistic: false,
+  },
+  'rz-proxima': {
+    label: 'Racer-Z: Proxima Centauri',
+    cls: 'racer-z', color: '#a78bfa',
+    d: 4.0e16, a: 9.81, isp: 50000, massRatio: 1e7,
+    mode: 'brachistochrone', infinite: true, relativistic: true,
+  },
+
+  // ── Laser sail presets ─────────────────────────────────
+  // Thrust: F = P/c (R=0 absorber model, consistent with spec examples)
+  // Acceleration at launch = P / (m·c)
+  'lx-cubesat': {
+    label: 'Laser-X: CubeSat → Mars',
+    cls: 'laser-x', color: '#fb923c',
+    laserSail: true,
+    d: 5.6e10,          // Mars close approach
+    mass_kg: 10,
+    power_w: 30e9,      // 30 GW  →  a ≈ 10 m/s² ≈ 1.02 g
+    sail_area_m2: 100,  // 10 m × 10 m
+    reflectivity: 0,
+    divergence_urad: 0.01,   // tight beam, cutoff ≈ 564,000 km
+    max_flux_wm2: 1e9,       // 1 GW/m²
+    relativistic: false,
+  },
+  'lx-probe': {
+    label: 'Laser-X: Probe → Neptune',
+    cls: 'laser-x', color: '#fb923c',
+    laserSail: true,
+    d: 4.5e12,          // Neptune
+    mass_kg: 800,
+    power_w: 2.4e12,    // 2.4 TW  →  a ≈ 10 m/s² ≈ 1.02 g
+    sail_area_m2: 8000, // ~90 m × 90 m
+    reflectivity: 0,
+    divergence_urad: 0.001,  // cutoff ≈ 50,000,000 km ≈ 0.34 AU
+    max_flux_wm2: 5e8,
+    relativistic: false,
+  },
+  'lx-crew': {
+    label: 'Laser-X: Crew Module → Proxima',
+    cls: 'laser-x', color: '#fb923c',
+    laserSail: true,
+    d: 4.0e16,          // Proxima Centauri
+    mass_kg: 20000,
+    power_w: 60e12,     // 60 TW  →  a ≈ 10 m/s² ≈ 1.02 g
+    sail_area_m2: 2e5,  // ~450 m × 450 m
+    reflectivity: 0,
+    divergence_urad: 0.0001, // cutoff ≈ 2.52×10¹⁵ m ≈ 0.27 ly (relativistic powered phase)
+    max_flux_wm2: 1e9,
+    relativistic: true,
+  },
+};
+
+// ──────────────────────────────────────────────────────────────
+// FORMATTING
+// ──────────────────────────────────────────────────────────────
+function fmtTime(s) {
+  const abs = Math.abs(s);
+  if (abs < 120)         return `${abs.toFixed(1)} s`;
+  if (abs < 7200)        return `${(abs/60).toFixed(1)} min`;
+  if (abs < 3 * DAY)     return `${(abs/HOUR).toFixed(2)} hr`;
+  if (abs < 2 * YEAR)    return `${(abs/DAY).toFixed(1)} days`;
+  return `${(abs/YEAR).toFixed(3)} yr`;
+}
+
+function fmtTimeFull(s) {
+  const abs = Math.abs(s);
+  if (abs < 120)       return `${abs.toFixed(2)} seconds`;
+  if (abs < 7200)      return `${(abs/60).toFixed(1)} minutes`;
+  if (abs < 3*DAY)     return `${(abs/HOUR).toFixed(2)} hours`;
+  if (abs < 1.5*YEAR)  return `${(abs/DAY).toFixed(1)} days (${(abs/YEAR).toFixed(3)} yr)`;
+  return `${(abs/YEAR).toFixed(4)} years`;
+}
+
+function fmtDist(m) {
+  if (m >= LY * 0.01)  return `${(m/LY).toFixed(5)} ly`;
+  if (m >= AU * 0.1)   return `${(m/AU).toFixed(4)} AU`;
+  if (m >= 1e6)        return `${(m/1000).toFixed(0)} km`;
+  return `${m.toFixed(0)} m`;
+}
+
+function fmtVel(mps) {
+  const kms = mps / 1000;
+  const pct = mps / C * 100;
+  if (pct >= 0.1) return `${kms.toFixed(1)} km/s &nbsp;(${pct.toFixed(3)}% c)`;
+  if (pct >= 0.001) return `${kms.toFixed(1)} km/s &nbsp;(${pct.toFixed(5)}% c)`;
+  return `${kms.toFixed(2)} km/s`;
+}
+
+function fmtDV(mps) {
+  const kms = (mps / 1000).toFixed(1);
+  return `${kms} km/s`;
+}
+
+// ──────────────────────────────────────────────────────────────
+// PHYSICS ENGINE
+// ──────────────────────────────────────────────────────────────
+function simulate({ d, a, mode, useRelativistic }) {
+  // Estimate classical trip time for step sizing
+  const t_cl = mode === 'brachistochrone'
+    ? 2 * Math.sqrt(d / a)
+    : Math.sqrt(2 * d / a);
+
+  const TARGET_PTS = 3000;
+  const dt = t_cl / TARGET_PTS;
+  const MAX_STEPS = TARGET_PTS * 20; // room for relativistic slowdown
+
+  let t = 0, tau = 0, x = 0, v = 0;
+  let cur_a = a;
+  let flipped = false;
+  let v_max = 0;
+  let gamma_max = 1;
+
+  // We'll store full data but plot-subsample later
+  const all = [{ t: 0, tau: 0, x: 0, v: 0, g: 1 }];
+
+  for (let step = 0; step < MAX_STEPS; step++) {
+    // Brachistochrone flip at halfway point
+    if (mode === 'brachistochrone' && !flipped && x >= d / 2) {
+      flipped = true;
+      cur_a = -a;
+    }
+
+    // Lorentz factor
+    let gamma = 1;
+    if (useRelativistic && v !== 0) {
+      const beta2 = Math.min((v / C) * (v / C), 0.9999998);
+      gamma = 1 / Math.sqrt(1 - beta2);
+    }
+
+    // Relativistic coordinate acceleration: dv/dt = a_proper / γ³
+    const dv_dt = useRelativistic
+      ? cur_a / (gamma * gamma * gamma)
+      : cur_a;
+
+    v += dv_dt * dt;
+
+    // Brachistochrone end: velocity zero during deceleration
+    if (mode === 'brachistochrone' && flipped && v <= 0) {
+      v = 0;
+      t += dt;
+      tau += dt / gamma;
+      all.push({ t, tau, x: d, v: 0, g: 1 });
+      break;
+    }
+
+    x += v * dt;
+    tau += dt / gamma;
+    t += dt;
+
+    if (v > v_max) { v_max = v; gamma_max = gamma; }
+
+    all.push({ t, tau, x: Math.min(x, d), v: Math.max(0, v), g: gamma });
+    if (x >= d) break;
+  }
+
+  // Downsample to ≤ 800 points for chart
+  const factor = Math.max(1, Math.ceil(all.length / 800));
+  const pts = all.filter((_, i) => i % factor === 0 || i === all.length - 1);
+
+  const dv_req = mode === 'brachistochrone' ? 2 * v_max : v_max;
+
+  // Non-rel time dilation approximation: Δτ ≈ Δt × (1 - v_avg²/(2c²))
+  // Computed exactly from integration above
+
+  return {
+    t_earth: t,
+    t_ship: tau,
+    time_dilation: t - tau,
+    v_max,
+    v_frac_c: v_max / C,
+    gamma_max,
+    dv_req,
+    pts,
+    isRel: useRelativistic,
+  };
+}
+
+function rocketDeltaV(isp, mr) { return isp * G0 * Math.log(mr); }
+function propFrac(mr) { return 1 - 1 / mr; }
+
+// ──────────────────────────────────────────────────────────────
+// LASER SAIL PHYSICS
+// ──────────────────────────────────────────────────────────────
+function fmtPower(w) {
+  if (w >= 1e15) return `${(w/1e12).toFixed(0)} TW`;
+  if (w >= 1e12) return `${(w/1e12).toFixed(2)} TW`;
+  if (w >= 1e9)  return `${(w/1e9).toFixed(1)} GW`;
+  if (w >= 1e6)  return `${(w/1e6).toFixed(1)} MW`;
+  return `${w.toFixed(0)} W`;
+}
+
+function simulateLaserSail({ d, mass_kg, power_w, sail_area_m2, reflectivity, divergence_rad, max_flux_wm2, useRelativistic }) {
+  // Geometry: beam footprint = sail at this distance
+  const sailRadius = Math.sqrt(sail_area_m2 / Math.PI);
+  const d_cutoff = divergence_rad > 0 ? sailRadius / divergence_rad : Infinity;
+
+  // Peak (launch) acceleration: F = (1+R)·P/c
+  const a_base = (1 + reflectivity) * power_w / (mass_kg * C);
+
+  // Thermal check
+  const flux_wm2 = power_w / sail_area_m2;
+  const thermal_ok = flux_wm2 <= max_flux_wm2;
+
+  // Platform recoil force (Newton's 3rd: photons push back on the emitter)
+  const recoil_force_n = power_w / C;
+
+  // Time estimate for step sizing
+  const d_push = Math.min(d, isFinite(d_cutoff) ? d_cutoff : d);
+  const t_push_est = Math.sqrt(2 * d_push / a_base);
+  const v_cut_est  = Math.min(a_base * t_push_est, 0.8 * C);
+  const t_coast_est = (isFinite(d_cutoff) && d_cutoff < d) ? (d - d_cutoff) / (v_cut_est || 1) : 0;
+  const t_est = t_push_est + t_coast_est;
+
+  const TARGET_PTS = 3000;
+  const dt = Math.max(1, t_est / TARGET_PTS);
+  const MAX_STEPS = TARGET_PTS * 25;
+
+  let t = 0, tau = 0, x = 0, v = 0;
+  let v_max = 0, gamma_max = 1;
+  const all = [{ t: 0, tau: 0, x: 0, v: 0, g: 1, powered: true }];
+
+  for (let step = 0; step < MAX_STEPS; step++) {
+    // Effective laser power: constant inside d_cutoff, falls as (d_cutoff/x)² beyond
+    let eff_power = power_w;
+    let powered = true;
+    if (isFinite(d_cutoff) && x > d_cutoff && x > 0) {
+      const ratio = d_cutoff / x;
+      eff_power = power_w * ratio * ratio;
+      if (eff_power < power_w * 0.0005) { eff_power = 0; powered = false; }
+    }
+
+    const a_eff = (1 + reflectivity) * eff_power / (mass_kg * C);
+
+    let gamma = 1;
+    if (useRelativistic && v > 0) {
+      const beta2 = Math.min((v / C) * (v / C), 0.9999998);
+      gamma = 1 / Math.sqrt(1 - beta2);
+    }
+
+    v += (useRelativistic ? a_eff / (gamma * gamma * gamma) : a_eff) * dt;
+    x += v * dt;
+    tau += dt / gamma;
+    t += dt;
+
+    if (v > v_max) { v_max = v; gamma_max = gamma; }
+    all.push({ t, tau, x: Math.min(x, d), v, g: gamma, powered });
+    if (x >= d) break;
+  }
+
+  const factor = Math.max(1, Math.ceil(all.length / 800));
+  const pts = all.filter((_, i) => i % factor === 0 || i === all.length - 1);
+
+  const beam_r_dest = d * divergence_rad;
+
+  return {
+    t_earth: t, t_ship: tau, time_dilation: t - tau,
+    v_max, v_frac_c: v_max / C, gamma_max,
+    dv_req: v_max,
+    pts, isRel: useRelativistic,
+    laser: {
+      power_w, a_base_ms2: a_base,
+      d_cutoff_m: isFinite(d_cutoff) ? d_cutoff : null,
+      flux_wm2, thermal_ok,
+      recoil_force_n,
+      beam_r_dest_m: beam_r_dest,
+    },
+  };
+}
+
+function displayLaserDetails(laser) {
+  const grid = document.getElementById('metrics-grid');
+  let html = '';
+  html += card('Laser Power',     fmtPower(laser.power_w), 'incident on sail', '#fb923c');
+  html += card('Sail Acceleration', `${laser.a_base_ms2.toFixed(2)} m/s²`,
+    `${(laser.a_base_ms2 / G0).toFixed(3)} g at launch`, '#fb923c');
+  html += card('Beam Cutoff Dist.',
+    laser.d_cutoff_m ? fmtDist(laser.d_cutoff_m) : 'Collimated (∞)',
+    laser.d_cutoff_m
+      ? 'beam spreads past sail — thrust ∝ 1/d² after this'
+      : 'beam stays within sail for entire trip');
+  const fluxOk = laser.thermal_ok;
+  html += card('Sail Flux',
+    `${fmtPower(laser.flux_wm2)}/m²`,
+    fluxOk ? '✓ Within thermal limit' : '✗ Exceeds thermal limit',
+    fluxOk ? '#34d399' : '#f87171');
+  html += card('Platform Recoil', `${laser.recoil_force_n.toFixed(1)} N`,
+    '= P/c  (station-keeping load)');
+  html += card('Beam at Destination',
+    laser.beam_r_dest_m > 0 ? `r = ${fmtDist(laser.beam_r_dest_m)}` : 'Spot < 1 m',
+    'laser footprint radius');
+  grid.innerHTML += html;
+}
+
+// ──────────────────────────────────────────────────────────────
+// CHART STATE
+// ──────────────────────────────────────────────────────────────
+const charts = {};
+let activeTab = 'velocity';
+let accentColor = '#38bdf8';
+
+// Plugin: draw 🚀 at the active hover point instead of a dot
+const rocketPlugin = {
+  id: 'rocketPoint',
+  afterDraw(chart) {
+    const tooltip = chart.tooltip;
+    if (!tooltip || !tooltip._active || !tooltip._active.length) return;
+
+    const pt  = tooltip._active[0].element;
+    const ca  = chart.chartArea;
+    const { ctx } = chart;
+
+    // Clamp to chart area so the emoji never renders in the axes gutter
+    const px = Math.max(ca.left, Math.min(ca.right,  pt.x));
+    const py = Math.max(ca.top,  Math.min(ca.bottom, pt.y));
+
+    ctx.save();
+    // Clip to chart area
+    ctx.beginPath();
+    ctx.rect(ca.left, ca.top, ca.width, ca.height);
+    ctx.clip();
+
+    // Subtle glow behind the emoji for legibility on dark backgrounds
+    ctx.shadowColor = 'rgba(0,0,0,0.85)';
+    ctx.shadowBlur  = 8;
+
+    ctx.font         = '20px serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🚀', px, py);
+
+    ctx.restore();
+  }
+};
+Chart.register(rocketPlugin);
+
+// Plugin: draw speed-of-light reference line on the velocity chart
+const cLinePlugin = {
+  id: 'cLine',
+  afterDraw(chart) {
+    if (!chart.options.plugins?.cLine?.enabled) return;
+
+    const C_KMS  = 299792.458;
+    const yScale = chart.scales.y;
+    if (!yScale) return;
+
+    const yPx = yScale.getPixelForValue(C_KMS);
+    const { ctx, chartArea: ca } = chart;
+
+    // Only render if the line falls inside the visible plot area
+    if (yPx < ca.top || yPx > ca.bottom) return;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(ca.left, ca.top, ca.width, ca.height);
+    ctx.clip();
+
+    // Dashed amber line
+    ctx.setLineDash([7, 5]);
+    ctx.strokeStyle = 'rgba(251,191,36,0.55)';
+    ctx.lineWidth   = 1.5;
+    ctx.moveTo(ca.left,  yPx);
+    ctx.lineTo(ca.right, yPx);
+    ctx.stroke();
+
+    // Label at right edge, above the line
+    ctx.setLineDash([]);
+    ctx.font         = 'bold 10px Consolas, monospace';
+    ctx.fillStyle    = 'rgba(251,191,36,0.85)';
+    ctx.textAlign    = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('c  (299,792 km/s)', ca.right - 8, yPx - 4);
+
+    // Subtle band above the line to reinforce "unreachable" zone
+    ctx.fillStyle = 'rgba(251,191,36,0.04)';
+    ctx.fillRect(ca.left, ca.top, ca.width, yPx - ca.top);
+
+    ctx.restore();
+  }
+};
+Chart.register(cLinePlugin);
+
+// Plugin: vertical dashed line at laser beam-cutoff point on velocity/position charts
+const beamCutoffPlugin = {
+  id: 'beamCutoff',
+  afterDraw(chart) {
+    const opts = chart.options.plugins?.beamCutoff;
+    if (!opts?.show || opts.frac == null) return;
+
+    const { ctx, chartArea: ca } = chart;
+    const xPx = ca.left + opts.frac * ca.width;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(ca.left, ca.top, ca.width, ca.height);
+    ctx.clip();
+
+    // Subtle amber tint in the powered phase
+    ctx.fillStyle = 'rgba(251,146,60,0.07)';
+    ctx.fillRect(ca.left, ca.top, xPx - ca.left, ca.height);
+
+    // Dashed vertical line
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = 'rgba(251,146,60,0.65)';
+    ctx.lineWidth = 1.5;
+    ctx.moveTo(xPx, ca.top);
+    ctx.lineTo(xPx, ca.bottom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Rotated label
+    ctx.save();
+    ctx.translate(xPx - 5, ca.bottom - 8);
+    ctx.rotate(-Math.PI / 2);
+    ctx.font = 'bold 9px sans-serif';
+    ctx.fillStyle = 'rgba(251,146,60,0.8)';
+    ctx.textAlign = 'left';
+    ctx.fillText('⚡ laser off', 0, 0);
+    ctx.restore();
+
+    ctx.restore();
+  }
+};
+Chart.register(beamCutoffPlugin);
+
+function chartOpts(xLabel, yLabel, color) {
+  const gridCol = 'rgba(255,255,255,.05)';
+  const tickCol = '#5a7890';
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 400 },
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0f1e30',
+        titleColor: '#7b96b4',
+        bodyColor: '#d8e8f5',
+        borderColor: '#1b2d46',
+        borderWidth: 1,
+        padding: 10,
+        callbacks: {
+          title: items => `${xLabel}: ${items[0].label}`,
+          label: item => ` ${yLabel}: ${item.formattedValue}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { color: gridCol },
+        ticks: { color: tickCol, maxTicksLimit: 8, maxRotation: 0 },
+        title: { display: true, color: tickCol, text: xLabel, font: { size: 11 } },
+      },
+      y: {
+        grid: { color: gridCol },
+        ticks: { color: tickCol, maxTicksLimit: 8 },
+        title: { display: true, color: tickCol, text: yLabel, font: { size: 11 } },
+        beginAtZero: true,
+      },
+    },
+  };
+}
+
+function makeDataset(data, color, fill = true) {
+  return {
+    data,
+    borderColor: color,
+    backgroundColor: color + (fill ? '22' : '00'),
+    borderWidth: 2,
+    pointRadius: 0,
+    tension: 0.15,
+    fill,
+  };
+}
+
+function getTimeUnit(t_max) {
+  if (t_max < 4 * HOUR) return { label: 'Hours',   f: HOUR,  dp: 2 };
+  if (t_max < 90 * DAY) return { label: 'Days',    f: DAY,   dp: 2 };
+  return                        { label: 'Years',   f: YEAR,  dp: 4 };
+}
+
+function getDistUnit(d_max) {
+  if (d_max >= LY * 0.005) return { label: 'Light-years', f: LY,   dp: 5 };
+  if (d_max >= AU * 0.05)  return { label: 'AU',          f: AU,   dp: 4 };
+  return                          { label: 'km',           f: 1000, dp: 1 };
+}
+
+function updateCharts(result, d) {
+  // ── Force all chart wrappers visible before creating any Chart instance ──
+  // Mobile WebKit does NOT reliably run ResizeObserver when a hidden container
+  // later becomes visible, so charts created inside display:none stay 0×0.
+  // We unhide every wrapper now, take one synchronous reflow so the browser
+  // assigns real pixel sizes to the canvases, then showTab() re-hides the
+  // non-active ones right after this function returns.
+  const wrapIds = ['chart-velocity', 'chart-position', 'chart-gamma'];
+  wrapIds.forEach(id => { document.getElementById(id).hidden = false; });
+  document.getElementById('chart-velocity').offsetHeight; // single reflow is enough
+
+  const { pts, t_earth, isRel, gamma_max } = result;
+  const tu = getTimeUnit(t_earth);
+  const du = getDistUnit(d);
+  const col = accentColor;
+
+  const labels = pts.map(p => (p.t / tu.f).toFixed(tu.dp));
+  const vData  = pts.map(p => +(p.v / 1000).toFixed(3));          // km/s
+  const xData  = pts.map(p => +(p.x / du.f).toFixed(du.dp));      // dist units
+  const gData  = pts.map(p => +p.g.toFixed(4));                    // gamma
+
+  // Beam-cutoff fraction for laser sail charts
+  let cutoffFrac = null;
+  if (result.laser) {
+    const cutoffPt = pts.find(p => p.powered === false);
+    if (cutoffPt) cutoffFrac = cutoffPt.t / result.t_earth;
+  }
+  const beamCutoff = { show: cutoffFrac !== null, frac: cutoffFrac };
+
+  // ── Velocity chart ──
+  const showCLine = result.v_frac_c > 0.01;
+  const C_KMS     = 299792.458;
+  const vOpts     = chartOpts(`Time (${tu.label})`, 'Velocity (km/s)', col);
+  vOpts.plugins.cLine       = { enabled: showCLine };
+  vOpts.plugins.beamCutoff  = beamCutoff;
+  if (showCLine) vOpts.scales.y.suggestedMax = C_KMS * 1.08;
+  if (charts.v) charts.v.destroy();
+  charts.v = new Chart(document.getElementById('cv-velocity'), {
+    type: 'line',
+    data: { labels, datasets: [makeDataset(vData, col)] },
+    options: vOpts,
+  });
+
+  // ── Position chart ──
+  const xOpts = chartOpts(`Time (${tu.label})`, `Distance (${du.label})`, col);
+  xOpts.plugins.beamCutoff = beamCutoff;
+  if (charts.x) charts.x.destroy();
+  charts.x = new Chart(document.getElementById('cv-position'), {
+    type: 'line',
+    data: { labels, datasets: [makeDataset(xData, col, false)] },
+    options: xOpts,
+  });
+
+  // ── Beam-cutoff explanation banner ──
+  const note = document.getElementById('cutoff-note');
+  if (note) {
+    if (result.laser && result.laser.d_cutoff_m && cutoffFrac !== null) {
+      const laser = result.laser;
+      const sailArea  = `${document.getElementById('ls-sail-area')?.value || '?'} m²`;
+      const sailR_m   = Math.sqrt(parseFloat(document.getElementById('ls-sail-area')?.value || 0) / Math.PI);
+      const div_urad  = document.getElementById('ls-divergence')?.value || '?';
+      const pctTrip   = (cutoffFrac * 100).toFixed(1);
+      note.style.display = 'block';
+      note.innerHTML =
+        `<strong>Why does the laser cut off?</strong> ` +
+        `Laser beams aren't perfectly parallel — they spread outward at a small angle called ` +
+        `<em>beam divergence</em> (set to ${div_urad} µrad here). ` +
+        `As the sail accelerates away, the beam footprint on the sail grows wider. ` +
+        `At <strong>${fmtDist(laser.d_cutoff_m)}</strong> the footprint exactly equals the sail area ` +
+        `(${sailArea}). Beyond that distance the beam is larger than the sail, ` +
+        `so the sail only catches a shrinking fraction of the laser power.<br><br>` +
+        `The physics: beam radius at distance <em>x</em> = <span class="cutoff-formula">x × θ</span>. ` +
+        `Once that radius exceeds the sail radius ` +
+        `(<span class="cutoff-formula">r<sub>sail</sub> = ${sailR_m.toFixed(1)} m</span>), ` +
+        `effective power on the sail falls as ` +
+        `<span class="cutoff-formula">P<sub>eff</sub> = P · (d<sub>cutoff</sub> / x)²</span>. ` +
+        `After ${pctTrip}% of the trip the thrust is effectively zero and the craft ` +
+        `<strong>coasts at constant velocity</strong> — no fuel needed, ` +
+        `but also no way to slow down at the destination.`;
+    } else {
+      note.style.display = 'none';
+    }
+  }
+
+  // ── Gamma chart (only if meaningfully relativistic) ──
+  const tabGamma = document.getElementById('tab-gamma');
+  if (isRel && gamma_max > 1.02) {
+    tabGamma.hidden = false;
+    if (charts.g) charts.g.destroy();
+    charts.g = new Chart(document.getElementById('cv-gamma'), {
+      type: 'line',
+      data: { labels, datasets: [makeDataset(gData, '#fbbf24')] },
+      options: chartOpts(`Time (${tu.label})`, 'Lorentz Factor γ', '#fbbf24'),
+    });
+  } else {
+    tabGamma.hidden = true;
+    if (activeTab === 'gamma') showTab('velocity');
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// TAB SWITCHING
+// ──────────────────────────────────────────────────────────────
+function showTab(name) {
+  activeTab = name;
+  ['velocity', 'position', 'gamma'].forEach(t => {
+    document.getElementById('chart-' + t).hidden = (t !== name);
+    const btn = document.querySelector(`.tab[onclick="showTab('${t}')"]`);
+    if (btn) btn.classList.toggle('active', t === name);
+  });
+  // Resize the newly-visible chart — it may have been created while hidden
+  // (e.g. position/gamma on first load) and mobile won't auto-recover.
+  requestAnimationFrame(() => {
+    const key = { velocity: 'v', position: 'x', gamma: 'g' }[name];
+    if (charts[key]) charts[key].resize();
+  });
+}
+
+// ──────────────────────────────────────────────────────────────
+// METRICS
+// ──────────────────────────────────────────────────────────────
+function card(label, value, sub = '', color = '') {
+  const style = color ? ` style="color:${color}"` : '';
+  const subHtml = sub ? `<div class="metric-sub">${sub}</div>` : '';
+  return `<div class="metric-card">
+    <div class="metric-label">${label}</div>
+    <div class="metric-value"${style}>${value}</div>
+    ${subHtml}
+  </div>`;
+}
+
+function displayResults(result, params) {
+  const { t_earth, t_ship, time_dilation, v_max, v_frac_c, gamma_max, dv_req, isRel } = result;
+  const { isp, massRatio, infinite, mode } = params;
+
+  const dv_avail   = rocketDeltaV(isp, massRatio);
+  const prop_pct   = (propFrac(massRatio) * 100).toFixed(1);
+  const dvOk       = infinite || dv_avail >= dv_req;
+  const col        = accentColor;
+
+  let html = '';
+
+  // Earth time
+  html += card('Earth-Frame Trip Time', fmtTimeFull(t_earth), '', col);
+
+  // Ship time
+  if (isRel && time_dilation > 1) {
+    html += card('Ship-Frame Trip Time', fmtTimeFull(t_ship), `γ_max = ${gamma_max.toFixed(3)}`, '#a78bfa');
+    html += card('Time Dilation', fmtTimeFull(time_dilation), 'Earth time − Ship time', '#fbbf24');
+  } else {
+    const dilStr = time_dilation < 1
+      ? `~${time_dilation.toExponential(2)} s`
+      : fmtTimeFull(time_dilation);
+    html += card('Ship-Frame Trip Time', fmtTimeFull(t_ship), 'Negligible dilation', col);
+    html += card('Time Dilation', dilStr, 'Non-relativistic regime', '#3f5978');
+  }
+
+  // Peak velocity
+  html += card('Peak Velocity', fmtVel(v_max), mode === 'brachistochrone' ? 'at midpoint (flip)' : 'at arrival');
+
+  // Δv required
+  const dvNote = mode === 'brachistochrone' ? '= 2 × v_peak' : '= v_arrival';
+  html += card('Required Δv', fmtDV(dv_req), dvNote);
+
+  // Propellant / available Δv
+  if (infinite) {
+    html += card('Propellant', 'Unlimited', 'Theoretical scenario', '#3f5978');
+  } else {
+    const dvColor = dvOk ? '#34d399' : '#f87171';
+    const dvSub   = dvOk ? '✓ Sufficient budget' : '✗ Insufficient — increase mass ratio';
+    html += card('Available Δv', fmtDV(dv_avail), dvSub, dvColor);
+    html += card('Propellant Fraction', `${prop_pct}%`, `Mass ratio ${massRatio}`);
+  }
+
+  document.getElementById('metrics-grid').innerHTML = html;
+}
+
+// ──────────────────────────────────────────────────────────────
+// SCENARIO HEADER + BADGES
+// ──────────────────────────────────────────────────────────────
+function updateHeader(name, mode, isRel, vFracC, dvOk, infinite) {
+  document.getElementById('scenario-name').textContent = name;
+  document.getElementById('scenario-name').style.color = accentColor;
+
+  const bMode = document.getElementById('badge-mode');
+  bMode.textContent = mode === 'brachistochrone' ? 'Brachistochrone' : 'Dart';
+  bMode.className = 'badge';
+
+  const bPhys = document.getElementById('badge-physics');
+  if (isRel) {
+    bPhys.textContent = 'Relativistic SR';
+    bPhys.className = 'badge rel';
+  } else {
+    bPhys.textContent = 'Classical';
+    bPhys.className = 'badge';
+  }
+
+  const bWarn = document.getElementById('badge-warn');
+  if (!isRel && vFracC > 0.1) {
+    bWarn.textContent = '⚠ v > 0.1c — enable SR';
+    bWarn.className = 'badge warn';
+    bWarn.hidden = false;
+  } else if (!infinite && !dvOk) {
+    bWarn.textContent = '✗ Δv deficit';
+    bWarn.className = 'badge warn';
+    bWarn.hidden = false;
+  } else {
+    bWarn.hidden = true;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// ROCKET EQUATION PREVIEW (live)
+// ──────────────────────────────────────────────────────────────
+function updateRocketPreview() {
+  const isp = parseFloat(document.getElementById('isp').value) || 0;
+  const mr  = parseFloat(document.getElementById('mass-ratio').value) || 1;
+  const inf = document.getElementById('infinite-prop').checked;
+  const el  = document.getElementById('rocket-preview');
+
+  if (inf) {
+    el.textContent = 'Infinite propellant — Δv unlimited';
+    return;
+  }
+  const ve  = isp * G0;
+  const dv  = ve * Math.log(mr);
+  const pf  = (1 - 1 / mr) * 100;
+  el.innerHTML =
+    `v<sub>e</sub> = ${(ve/1000).toFixed(1)} km/s<br>` +
+    `Δv avail = ${(dv/1000).toFixed(1)} km/s<br>` +
+    `Prop fraction = ${pf.toFixed(1)}%`;
+}
+
+// ──────────────────────────────────────────────────────────────
+// DISTANCE HELPERS
+// ──────────────────────────────────────────────────────────────
+function getDistMeters() {
+  const v = parseFloat(document.getElementById('dist-val').value);
+  const u = document.getElementById('dist-unit').value;
+  if (u === 'km') return v * 1000;
+  if (u === 'AU') return v * AU;
+  if (u === 'ly') return v * LY;
+  return v;
+}
+
+function setDist(m) {
+  let v, u;
+  if (m >= LY * 0.005) { v = +(m/LY).toFixed(5); u = 'ly'; }
+  else if (m >= AU * 0.05) { v = +(m/AU).toFixed(4); u = 'AU'; }
+  else { v = +(m/1000).toFixed(2); u = 'km'; }
+  document.getElementById('dist-val').value = v;
+  document.getElementById('dist-unit').value = u;
+}
+
+// ──────────────────────────────────────────────────────────────
+// LOAD PRESET
+// ──────────────────────────────────────────────────────────────
+function loadPreset(key) {
+  const p = PRESETS[key];
+  if (!p) return;
+
+  accentColor = p.color;
+  setDist(p.d);
+
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.preset-btn[onclick="loadPreset('${key}')"]`).classList.add('active');
+
+  if (p.laserSail) {
+    // ── Switch to laser-sail UI ──
+    propulsionType = 'laser_sail';
+    document.getElementById('rocket-params').hidden  = true;
+    document.getElementById('laser-params').hidden   = false;
+    document.getElementById('rocket-info-box').hidden = true;
+    document.getElementById('laser-info-box').hidden  = false;
+
+    // Populate laser fields
+    const powerGW = p.power_w >= 1e12
+      ? [p.power_w / 1e12, 'TW']
+      : [p.power_w / 1e9,  'GW'];
+    document.getElementById('ls-mass').value        = p.mass_kg;
+    document.getElementById('ls-power-val').value   = powerGW[0];
+    document.getElementById('ls-power-unit').value  = powerGW[1];
+    document.getElementById('ls-sail-area').value   = p.sail_area_m2;
+    document.getElementById('ls-reflectivity').value = p.reflectivity;
+    document.getElementById('ls-divergence').value  = p.divergence_urad;
+    document.getElementById('ls-max-flux').value    = p.max_flux_wm2 / 1e9;
+    document.getElementById('ls-use-relativistic').checked = p.relativistic;
+
+    updateLaserPreview();
+
+  } else {
+    // ── Switch to rocket UI ──
+    propulsionType = 'rocket';
+    document.getElementById('rocket-params').hidden   = false;
+    document.getElementById('laser-params').hidden    = true;
+    document.getElementById('rocket-info-box').hidden = false;
+    document.getElementById('laser-info-box').hidden  = true;
+
+    document.getElementById('accel').value = p.a;
+    document.getElementById('isp').value   = p.isp;
+    document.getElementById('mass-ratio').value = p.massRatio;
+    document.querySelector(`input[name="mode"][value="${p.mode}"]`).checked = true;
+    document.getElementById('infinite-prop').checked   = p.infinite;
+    document.getElementById('use-relativistic').checked = p.relativistic;
+
+    updateRocketPreview();
+  }
+
+  runSimulation(p.label);
+}
+
+// ──────────────────────────────────────────────────────────────
+// RUN SIMULATION
+// ──────────────────────────────────────────────────────────────
+function runSimulation(scenarioLabel) {
+  const d     = getDistMeters();
+  const label = scenarioLabel || 'Custom Mission';
+  if (!d || d <= 0) return;
+
+  let result;
+
+  if (propulsionType === 'laser_sail') {
+    const mass_kg       = parseFloat(document.getElementById('ls-mass').value);
+    const powerVal      = parseFloat(document.getElementById('ls-power-val').value);
+    const powerUnit     = document.getElementById('ls-power-unit').value;
+    const power_w       = powerVal * (powerUnit === 'TW' ? 1e12 : 1e9);
+    const sail_area_m2  = parseFloat(document.getElementById('ls-sail-area').value);
+    const reflectivity  = parseFloat(document.getElementById('ls-reflectivity').value);
+    const div_urad      = parseFloat(document.getElementById('ls-divergence').value);
+    const divergence_rad = div_urad * 1e-6;
+    const max_flux_wm2  = parseFloat(document.getElementById('ls-max-flux').value) * 1e9;
+    const useRel        = document.getElementById('ls-use-relativistic').checked;
+
+    if (!mass_kg || !power_w || !sail_area_m2 || mass_kg <= 0 || power_w <= 0) return;
+
+    result = simulateLaserSail({ d, mass_kg, power_w, sail_area_m2, reflectivity,
+      divergence_rad, max_flux_wm2, useRelativistic: useRel });
+
+    updateHeader(label, 'dart', useRel, result.v_frac_c, true, true);
+    displayResults(result, { isp: 0, massRatio: 1, infinite: true, mode: 'dart' });
+    displayLaserDetails(result.laser);
+
+  } else {
+    const a         = parseFloat(document.getElementById('accel').value);
+    const isp       = parseFloat(document.getElementById('isp').value);
+    const massRatio = parseFloat(document.getElementById('mass-ratio').value);
+    const mode      = document.querySelector('input[name="mode"]:checked').value;
+    const infinite  = document.getElementById('infinite-prop').checked;
+    const useRel    = document.getElementById('use-relativistic').checked;
+
+    if (!a || !isp || !massRatio || a <= 0) return;
+
+    result = simulate({ d, a, mode, useRelativistic: useRel });
+
+    const dv_avail = rocketDeltaV(isp, massRatio);
+    const dvOk = infinite || dv_avail >= result.dv_req;
+
+    updateHeader(label, mode, useRel, result.v_frac_c, dvOk, infinite);
+    displayResults(result, { isp, massRatio, infinite, mode });
+  }
+
+  // ── Make the results container visible BEFORE building charts ──
+  // Charts rendered inside a display:none element get 0×0 canvas
+  // dimensions and fail to paint on mobile (ResizeObserver is unreliable).
+  document.getElementById('no-results').hidden = true;
+  const rc = document.getElementById('results-content');
+  rc.style.animation = 'none';
+  rc.hidden = false;
+  rc.offsetHeight; // force reflow so the browser assigns real pixel dimensions
+
+  updateCharts(result, d);
+
+  // Belt-and-braces: ask every live chart to re-measure after the next paint,
+  // catching any browser that defers layout until after the JS call stack clears.
+  requestAnimationFrame(() => {
+    Object.values(charts).forEach(c => c && c.resize());
+  });
+
+  rc.style.animation = '';
+  showTab('velocity');
+}
+
+// ──────────────────────────────────────────────────────────────
+// PROPULSION TYPE STATE
+// ──────────────────────────────────────────────────────────────
+let propulsionType = 'rocket'; // 'rocket' | 'laser_sail'
+
+// ──────────────────────────────────────────────────────────────
+// LASER PREVIEW (live sidebar summary)
+// ──────────────────────────────────────────────────────────────
+function updateLaserPreview() {
+  const mass_kg   = parseFloat(document.getElementById('ls-mass').value) || 0;
+  const powerVal  = parseFloat(document.getElementById('ls-power-val').value) || 0;
+  const powerUnit = document.getElementById('ls-power-unit').value;
+  const power_w   = powerVal * (powerUnit === 'TW' ? 1e12 : 1e9);
+  const R         = parseFloat(document.getElementById('ls-reflectivity').value) || 0;
+  const area      = parseFloat(document.getElementById('ls-sail-area').value) || 1;
+  const div_urad  = parseFloat(document.getElementById('ls-divergence').value) || 0;
+
+  const a  = mass_kg > 0 ? (1 + R) * power_w / (mass_kg * C) : 0;
+  const ve = fmtPower(power_w);
+  const flux = fmtPower(power_w / area) + '/m²';
+  const sailR = Math.sqrt(area / Math.PI);
+  const dcut = div_urad > 0 ? fmtDist(sailR / (div_urad * 1e-6)) : '∞';
+  const recoil = (power_w / C).toFixed(2) + ' N';
+
+  // Update computed accel display
+  document.getElementById('ls-accel-computed').textContent =
+    a > 0 ? `${a.toFixed(3)}  (${(a/G0).toFixed(3)} g)` : '—';
+
+  const thrust_n = (1 + R) * power_w / C;
+  document.getElementById('laser-preview').innerHTML =
+    `Power:   <b>${ve}</b><br>` +
+    `Thrust:  <b>${thrust_n >= 1 ? thrust_n.toFixed(1) + ' N' : (thrust_n*1000).toFixed(2) + ' mN'}</b><br>` +
+    `Accel:   <b>${a.toFixed(3)} m/s² (${(a/G0).toFixed(3)} g)</b><br>` +
+    `Flux:    <b>${flux}</b><br>` +
+    `Cutoff:  <b>${dcut}</b><br>` +
+    `Recoil:  <b>${recoil}</b>`;
+}
+
+// ──────────────────────────────────────────────────────────────
+// INIT
+// ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Rocket param listeners
+  ['isp', 'mass-ratio'].forEach(id =>
+    document.getElementById(id).addEventListener('input', updateRocketPreview)
+  );
+  document.getElementById('infinite-prop').addEventListener('change', updateRocketPreview);
+
+  // Laser sail param listeners
+  ['ls-mass','ls-power-val','ls-power-unit','ls-sail-area',
+   'ls-reflectivity','ls-divergence','ls-max-flux'].forEach(id =>
+    document.getElementById(id).addEventListener('input', updateLaserPreview)
+  );
+
+  updateRocketPreview();
+  loadPreset('rx-close');
+});
+</script>
+</body>
+</html>

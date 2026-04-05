@@ -1,0 +1,50 @@
+# Copy this file and rename it for each Node.js container app.
+# Edit the three ENV vars below, then push to trigger.
+
+name: Deploy container — CHANGE_ME
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "containers/CHANGE_ME/**"   # only trigger when this app's code changes
+
+env:
+  APP_NAME: CHANGE_ME               # e.g. "my-node-app"
+  IMAGE: ghcr.io/${{ github.repository_owner }}/CHANGE_ME
+  PORT: 3000                        # port your app listens on
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write               # push to ghcr.io
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: containers/${{ env.APP_NAME }}
+          push: true
+          tags: ${{ env.IMAGE }}:${{ github.sha }},${{ env.IMAGE }}:latest
+
+      - name: Deploy to Azure Container Apps
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          acrName: ""                           # leave blank — using ghcr.io
+          containerAppName: explore-${{ env.APP_NAME }}
+          resourceGroup: explore-odinz-rg
+          imageToDeploy: ${{ env.IMAGE }}:${{ github.sha }}
+          targetPort: ${{ env.PORT }}
+        env:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}

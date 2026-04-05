@@ -1,0 +1,15 @@
+{
+  "name": "play-odinz-net",
+  "version": "1.0.0",
+  "description": "AI experiments and tools hosted at [play.odinz.net](https://play.odinz.net).",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "figlet": "^1.11.0"
+  }
+}

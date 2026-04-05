@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#000"/>
+  <defs>
+    <!-- diagonal gradient matching the hero — top-left cyan → bottom-right red -->
+    <linearGradient id="g" x1="64" y1="52" x2="448" y2="460" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#00d4ff"/>
+      <stop offset="28%"  stop-color="#ffe600"/>
+      <stop offset="55%"  stop-color="#aa00ff"/>
+      <stop offset="76%"  stop-color="#ff0088"/>
+      <stop offset="100%" stop-color="#ff4545"/>
+    </linearGradient>
+  </defs>
+  <!-- pixel-block "e": top bar, left bar, middle bar, bottom bar -->
+  <rect x="64"  y="52"  width="384" height="72" fill="url(#g)"/><!-- top   -->
+  <rect x="64"  y="124" width="72"  height="336" fill="url(#g)"/><!-- left  -->
+  <rect x="136" y="220" width="256" height="72"  fill="url(#g)"/><!-- mid   -->
+  <rect x="136" y="388" width="256" height="72"  fill="url(#g)"/><!-- bot   -->
+</svg>

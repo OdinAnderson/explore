@@ -1,0 +1,27 @@
+{
+  "routes": [
+    {
+      "route": "/apps/protected/*",
+      "allowedRoles": ["authenticated"]
+    }
+  ],
+  "responseOverrides": {
+    "401": {
+      "redirect": "/.auth/login/aad",
+      "statusCode": 302
+    }
+  },
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+  },
+  "mimeTypes": {
+    ".svg": "image/svg+xml",
+    ".webmanifest": "application/manifest+json"
+  },
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/apps/*", "/api/*", "/sw.js", "/*.{css,js,ico,png,svg,json,webmanifest}"]
+  }
+}

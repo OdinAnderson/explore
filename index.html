@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>explore.odinz.net</title>
+  <meta name="description" content="Build · Break · Repeat — AI experiments by odinz" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="explore" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --surface: #16161a;
+      --border: #2a2a35;
+      --accent: #7c6af7;
+      --accent-dim: #4e3fc8;
+      --text: #e8e8f0;
+      --muted: #7878a0;
+      --tag-public-bg: #0f2a1a;
+      --tag-public: #4ade80;
+      --tag-auth-bg: #2a1f0f;
+      --tag-auth: #fbbf24;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 4rem;
+    }
+
+    /* ── Hero header ── */
+    .hero {
+      background: #000;
+      text-align: center;
+      padding: 3rem 0 0;          /* no side padding — pre is inline-block & centered */
+      overflow-x: auto;           /* safety net if viewport is very narrow */
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .hero-ascii {
+      font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace;
+      /* scales so 67-char art always fits: 95vw ÷ 67 chars ÷ ~0.60 char-width ratio */
+      font-size: clamp(7px, 2.36vw, 24px);
+      line-height: 1.2;
+      white-space: pre;
+      display: inline-block;
+      text-align: left;
+      margin: 0 auto;
+    }
+
+    .hero-subtitle {
+      margin-top: 0.6rem;
+      font-family: 'Courier New', 'Courier', monospace;
+      font-size: clamp(0.55rem, 1.5vw, 0.82rem);
+      letter-spacing: 0.15em;
+      color: #e040a0;
+      text-transform: uppercase;
+      padding-bottom: 1.8rem;
+    }
+
+    /* rainbow rule */
+    .hero-rule {
+      height: 3px;
+      border: none;
+      background: linear-gradient(
+        to right,
+        #00d4ff, #ffe600, #ffe600, #aa00ff, #ff0088, #ff4545
+      );
+    }
+
+    .page-body {
+      padding: 2.5rem 1rem 0;
+    }
+
+    .grid {
+      max-width: 860px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+
+    /* on narrow phones, allow single-column even below 260px */
+    @media (max-width: 360px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .section-label {
+      max-width: 860px;
+      margin: 0 auto 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .section-label + .grid {
+      margin-top: 0;
+    }
+
+    section {
+      max-width: 860px;
+      margin: 0 auto 2.5rem;
+    }
+
+    section h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.4rem;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      transition: border-color 0.18s, box-shadow 0.18s, transform 0.12s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--accent) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .card:hover {
+      border-color: var(--accent-dim);
+      box-shadow: 0 0 0 1px var(--accent-dim), 0 4px 24px rgba(124,106,247,0.15);
+      transform: translateY(-2px);
+    }
+
+    .card:hover::before {
+      opacity: 0.04;
+    }
+
+    .card-icon {
+      font-size: 1.6rem;
+      line-height: 1;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .card-desc {
+      font-size: 0.83rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    .tag {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.2em 0.55em;
+      border-radius: 4px;
+    }
+
+    .tag-public  { background: var(--tag-public-bg);  color: var(--tag-public); }
+    .tag-auth    { background: var(--tag-auth-bg);    color: var(--tag-auth);  }
+    .tag-wip     { background: #1a1a2a; color: #6060a0; }
+
+    .card-arrow {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 1rem;
+      transition: color 0.18s, transform 0.18s;
+    }
+
+    .card:hover .card-arrow {
+      color: var(--accent);
+      transform: translateX(3px);
+    }
+
+    footer {
+      max-width: 860px;
+      margin: 4rem auto 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+
+    .coming-soon {
+      opacity: 0.45;
+      pointer-events: none;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Hero ── -->
+  <div class="hero">
+    <pre id="hero-ascii" class="hero-ascii" aria-label="explore"></pre>
+    <div class="hero-subtitle">Build &nbsp;·&nbsp; Break &nbsp;·&nbsp; Repeat</div>
+    <hr class="hero-rule" />
+  </div>
+
+  <div class="page-body">
+
+  <!-- ===================== PUBLIC APPS ===================== -->
+  <section>
+    <h2>🌐 Public</h2>
+    <div class="grid">
+
+      <a class="card" href="/apps/spacecraft-simulator/">
+        <div class="card-icon">🛸</div>
+        <div class="card-title">Spacecraft Flight Simulator</div>
+        <div class="card-desc">Interactive orbital mechanics simulator with real-time telemetry charts and mission controls.</div>
+        <div class="card-footer">
+          <span class="tag tag-public">Public</span>
+          <span class="card-arrow">→</span>
+        </div>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- ===================== AUTHENTICATED APPS ===================== -->
+  <section>
+    <h2>🔐 Sign-in Required</h2>
+    <div class="grid">
+
+      <a class="card coming-soon" href="#" aria-label="Coming soon">
+        <div class="card-icon">🤖</div>
+        <div class="card-title">Private Tool</div>
+        <div class="card-desc">Authenticated apps will appear here.</div>
+        <div class="card-footer">
+          <span class="tag tag-auth">Sign-in required</span>
+          <span class="tag tag-wip">Coming Soon</span>
+          <span class="card-arrow">→</span>
+        </div>
+      </a>
+
+    </div>
+  </section>
+
+  <footer>
+    <p>explore.odinz.net &mdash; <a href="https://github.com" target="_blank" rel="noopener">GitHub</a></p>
+  </footer>
+
+  </div><!-- /page-body -->
+
+  <script>
+  (function () {
+    // DOS Rebel figlet output for "explore"
+    const ART = "                                \u2588\u2588\u2588\u2588                             \n                               \u2591\u2591\u2588\u2588\u2588                             \n  \u2588\u2588\u2588\u2588\u2588\u2588  \u2588\u2588\u2588\u2588\u2588 \u2588\u2588\u2588\u2588\u2588 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588  \u2591\u2588\u2588\u2588   \u2588\u2588\u2588\u2588\u2588\u2588  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588   \u2588\u2588\u2588\u2588\u2588\u2588 \n \u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588 \u2591\u2591\u2588\u2588\u2588 \u2591\u2591\u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588  \u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588 \u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588\n\u2591\u2588\u2588\u2588\u2588\u2588\u2588\u2588  \u2591\u2591\u2591\u2588\u2588\u2588\u2588\u2588\u2591   \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588 \u2591\u2591\u2591 \u2591\u2588\u2588\u2588\u2588\u2588\u2588\u2588 \n\u2591\u2588\u2588\u2588\u2591\u2591\u2591    \u2588\u2588\u2588\u2591\u2591\u2591\u2588\u2588\u2588  \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588     \u2591\u2588\u2588\u2588\u2591\u2591\u2591  \n\u2591\u2591\u2588\u2588\u2588\u2588\u2588\u2588  \u2588\u2588\u2588\u2588\u2588 \u2588\u2588\u2588\u2588\u2588 \u2591\u2588\u2588\u2588\u2588\u2588\u2588\u2588  \u2588\u2588\u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588\u2588\u2588\u2588  \u2588\u2588\u2588\u2588\u2588    \u2591\u2591\u2588\u2588\u2588\u2588\u2588\u2588 \n \u2591\u2591\u2591\u2591\u2591\u2591  \u2591\u2591\u2591\u2591\u2591 \u2591\u2591\u2591\u2591\u2591  \u2591\u2588\u2588\u2588\u2591\u2591\u2591  \u2591\u2591\u2591\u2591\u2591  \u2591\u2591\u2591\u2591\u2591\u2591  \u2591\u2591\u2591\u2591\u2591      \u2591\u2591\u2591\u2591\u2591\u2591  \n                      \u2591\u2588\u2588\u2588                                       \n                      \u2588\u2588\u2588\u2588\u2588                                      \n                     \u2591\u2591\u2591\u2591\u2591                                        ";
+
+    // Gradient stops [t, [r,g,b]] — cyan → yellow → purple → pink → red
+    const STOPS = [
+      [0.00, [0x00, 0xd4, 0xff]],
+      [0.28, [0xff, 0xe6, 0x00]],
+      [0.55, [0xaa, 0x00, 0xff]],
+      [0.76, [0xff, 0x00, 0x88]],
+      [1.00, [0xff, 0x45, 0x45]],
+    ];
+
+    function lerp(t) {
+      for (let i = 0; i < STOPS.length - 1; i++) {
+        const [t0, c0] = STOPS[i], [t1, c1] = STOPS[i + 1];
+        if (t <= t1) {
+          const f = (t - t0) / (t1 - t0);
+          return c0.map((v, j) => Math.round(v + f * (c1[j] - v)));
+        }
+      }
+      return STOPS[STOPS.length - 1][1];
+    }
+
+    const lines = ART.split('\n');
+    const maxLen = Math.max(...lines.map(l => [...l].length));
+    const maxRows = lines.length;
+
+    let html = '';
+    for (let row = 0; row < lines.length; row++) {
+      const chars = [...lines[row]];
+      for (let col = 0; col < maxLen; col++) {
+        const ch = chars[col] ?? ' ';
+        if (ch === ' ') { html += ' '; continue; }
+
+        // Diagonal gradient: weighted mix of column (70%) and row (30%)
+        const t = (col / (maxLen - 1) * 0.70) + (row / (maxRows - 1) * 0.30);
+        const tc = Math.min(t, 1);
+        const [r, g, b] = lerp(tc);
+
+        // ░ (U+2591) = light shade → muted fill
+        // █ (U+2588) = full block  → full color + bright prominent shadow
+        if (ch === '\u2591') {
+          const dr = Math.round(r * 0.45), dg = Math.round(g * 0.45), db = Math.round(b * 0.45);
+          html += `<span style="color:rgb(${dr},${dg},${db})">${ch}</span>`;
+        } else {
+          const sr = Math.round(r * 0.55), sg = Math.round(g * 0.55), sb = Math.round(b * 0.55);
+          html += `<span style="color:rgb(${r},${g},${b});text-shadow:3px 3px 0 rgb(${sr},${sg},${sb})">${ch}</span>`;
+        }
+      }
+      html += '\n';
+    }
+
+    document.getElementById('hero-ascii').innerHTML = html;
+  }());
+  </script>
+  <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .catch(err => console.warn('SW registration failed:', err));
+    });
+  }
+  </script>
+
+</body>
+</html>
