@@ -129,7 +129,6 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 1.25rem 1.4rem;
-      text-decoration: none;
       color: inherit;
       display: flex;
       flex-direction: column;
@@ -147,6 +146,7 @@
       background: linear-gradient(135deg, var(--accent) 0%, transparent 60%);
       opacity: 0;
       transition: opacity 0.2s;
+      pointer-events: none;
     }
 
     .card:hover {
@@ -157,6 +157,51 @@
 
     .card:hover::before {
       opacity: 0.04;
+    }
+
+    /* Primary card link — covers the whole card via a stretched ::after */
+    .card-link {
+      text-decoration: none;
+      color: inherit;
+      display: contents;
+    }
+
+    .card-link::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+
+    /* Repo link sits above the stretched overlay */
+    .card-repo {
+      position: relative;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3em;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.2em 0.5em;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      transition: color 0.18s, border-color 0.18s, background 0.18s;
+    }
+
+    .card-repo:hover {
+      color: var(--accent);
+      border-color: var(--accent-dim);
+      background: rgba(124,106,247,0.08);
+    }
+
+    .card-repo svg {
+      width: 0.9em;
+      height: 0.9em;
+      fill: currentColor;
     }
 
     .card-icon {
@@ -208,6 +253,8 @@
       transform: translateX(3px);
     }
 
+    .coming-soon .card-link { pointer-events: none; cursor: default; }
+
     footer {
       max-width: 860px;
       margin: 4rem auto 0;
@@ -242,45 +289,69 @@
     <h2>🌐 Public</h2>
     <div class="grid">
 
-      <a class="card" href="/apps/spacecraft-simulator/">
-        <div class="card-icon">🛸</div>
-        <div class="card-title">Spacecraft Flight Simulator</div>
-        <div class="card-desc">Interactive orbital mechanics simulator with real-time telemetry charts and mission controls.</div>
+      <div class="card">
+        <a class="card-link" href="/apps/spacecraft-simulator/">
+          <div class="card-icon">🛸</div>
+          <div class="card-title">Spacecraft Flight Simulator</div>
+          <div class="card-desc">Interactive orbital mechanics simulator with real-time telemetry charts and mission controls.</div>
+        </a>
         <div class="card-footer">
           <span class="tag tag-public">Public</span>
+          <a class="card-repo" href="https://github.com/OdinAnderson/explore" target="_blank" rel="noopener" aria-label="View source on GitHub">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+            Repo
+          </a>
           <span class="card-arrow">→</span>
         </div>
-      </a>
+      </div>
 
-      <a class="card" href="https://ambitious-ground-04dc9da1e.2.azurestaticapps.net/" target="_blank" rel="noopener">
-        <div class="card-icon">🐋</div>
-        <div class="card-title">DeepR</div>
-        <div class="card-desc">Deep research assistant — explore topics with AI-powered synthesis and source tracing.</div>
+      <div class="card">
+        <a class="card-link" href="https://ambitious-ground-04dc9da1e.2.azurestaticapps.net/" target="_blank" rel="noopener">
+          <div class="card-icon">🐋</div>
+          <div class="card-title">DeepR</div>
+          <div class="card-desc">Deep research assistant — explore topics with AI-powered synthesis and source tracing.</div>
+        </a>
         <div class="card-footer">
           <span class="tag tag-public">Public</span>
+          <a class="card-repo" href="https://github.com/OdinAnderson/DeepR" target="_blank" rel="noopener" aria-label="View source on GitHub">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+            Repo
+          </a>
           <span class="card-arrow">→</span>
         </div>
-      </a>
+      </div>
 
-      <a class="card" href="https://odinanderson.github.io/vrp-modeler/" target="_blank" rel="noopener">
-        <div class="card-icon">💰</div>
-        <div class="card-title">VRP Offer Modeler</div>
-        <div class="card-desc">Model a Voluntary Retirement Program offer — compare stay vs. layoff vs. VRP and find your personal take/stay breakpoint.</div>
+      <div class="card">
+        <a class="card-link" href="https://odinanderson.github.io/vrp-modeler/" target="_blank" rel="noopener">
+          <div class="card-icon">💰</div>
+          <div class="card-title">VRP Offer Modeler</div>
+          <div class="card-desc">Model a Voluntary Retirement Program offer — compare stay vs. layoff vs. VRP and find your personal take/stay breakpoint.</div>
+        </a>
         <div class="card-footer">
           <span class="tag tag-public">Public</span>
+          <a class="card-repo" href="https://github.com/OdinAnderson/vrp-modeler" target="_blank" rel="noopener" aria-label="View source on GitHub">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+            Repo
+          </a>
           <span class="card-arrow">→</span>
         </div>
-      </a>
+      </div>
 
-      <a class="card" href="https://odinanderson.github.io/Koi-pond/" target="_blank" rel="noopener">
-        <div class="card-icon">🐟</div>
-        <div class="card-title">Koi Pond</div>
-        <div class="card-desc">Simulate koi growth under varying water quality, stocking, and feeding — explore what-if scenarios for your pond.</div>
+      <div class="card">
+        <a class="card-link" href="https://odinanderson.github.io/Koi-pond/" target="_blank" rel="noopener">
+          <div class="card-icon">🐟</div>
+          <div class="card-title">Koi Pond</div>
+          <div class="card-desc">Simulate koi growth under varying water quality, stocking, and feeding — explore what-if scenarios for your pond.</div>
+        </a>
         <div class="card-footer">
           <span class="tag tag-public">Public</span>
+          <a class="card-repo" href="https://github.com/OdinAnderson/Koi-pond" target="_blank" rel="noopener" aria-label="View source on GitHub">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+            Repo
+          </a>
           <span class="card-arrow">→</span>
         </div>
-      </a>
+      </div>
 
     </div>
   </section>
@@ -290,16 +361,18 @@
     <h2>🔐 Sign-in Required</h2>
     <div class="grid">
 
-      <a class="card coming-soon" href="#" aria-label="Coming soon">
-        <div class="card-icon">🤖</div>
-        <div class="card-title">Private Tool</div>
-        <div class="card-desc">Authenticated apps will appear here.</div>
+      <div class="card coming-soon">
+        <a class="card-link" href="#" aria-label="Coming soon">
+          <div class="card-icon">🤖</div>
+          <div class="card-title">Private Tool</div>
+          <div class="card-desc">Authenticated apps will appear here.</div>
+        </a>
         <div class="card-footer">
           <span class="tag tag-auth">Sign-in required</span>
           <span class="tag tag-wip">Coming Soon</span>
           <span class="card-arrow">→</span>
         </div>
-      </a>
+      </div>
 
     </div>
   </section>
