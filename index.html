@@ -207,6 +207,18 @@
     .card-icon {
       font-size: 1.6rem;
       line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.6em;
+      height: 1.6em;
+    }
+
+    .card-favicon {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 4px;
     }
 
     .card-title {
@@ -291,7 +303,7 @@
 
       <div class="card">
         <a class="card-link" href="https://odinanderson.github.io/spaceship-simulator/" target="_blank" rel="noopener">
-          <div class="card-icon">🛸</div>
+          <div class="card-icon"><span class="card-icon-emoji">🛸</span></div>
           <div class="card-title">Spacecraft Flight Simulator</div>
           <div class="card-desc">Interactive orbital mechanics simulator with real-time telemetry charts and mission controls.</div>
         </a>
@@ -307,7 +319,7 @@
 
       <div class="card">
         <a class="card-link" href="https://ambitious-ground-04dc9da1e.2.azurestaticapps.net/" target="_blank" rel="noopener">
-          <div class="card-icon">🐋</div>
+          <div class="card-icon"><span class="card-icon-emoji">🐋</span></div>
           <div class="card-title">DeepR</div>
           <div class="card-desc">Deep research assistant — explore topics with AI-powered synthesis and source tracing.</div>
         </a>
@@ -323,7 +335,7 @@
 
       <div class="card">
         <a class="card-link" href="https://odinanderson.github.io/vrp-modeler/" target="_blank" rel="noopener">
-          <div class="card-icon">💰</div>
+          <div class="card-icon"><span class="card-icon-emoji">💰</span></div>
           <div class="card-title">VRP Offer Modeler</div>
           <div class="card-desc">Model a Voluntary Retirement Program offer — compare stay vs. layoff vs. VRP and find your personal take/stay breakpoint.</div>
         </a>
@@ -339,7 +351,7 @@
 
       <div class="card">
         <a class="card-link" href="https://odinanderson.github.io/Koi-pond/" target="_blank" rel="noopener">
-          <div class="card-icon">🐟</div>
+          <div class="card-icon"><span class="card-icon-emoji">🐟</span></div>
           <div class="card-title">Koi Pond</div>
           <div class="card-desc">Simulate koi growth under varying water quality, stocking, and feeding — explore what-if scenarios for your pond.</div>
         </a>
@@ -438,6 +450,39 @@
     }
 
     document.getElementById('hero-ascii').innerHTML = html;
+  }());
+  </script>
+  <script>
+  // Try to swap each card's emoji icon for the destination site's real favicon.
+  // Uses Google's favicon service; if it returns the tiny generic globe (<32px),
+  // we keep the emoji fallback.
+  (function () {
+    document.querySelectorAll('.card').forEach(card => {
+      const link = card.querySelector('.card-link');
+      const iconBox = card.querySelector('.card-icon');
+      if (!link || !iconBox) return;
+      const href = link.getAttribute('href');
+      if (!href || href.startsWith('#') || href.startsWith('/')) return;
+
+      let domain;
+      try { domain = new URL(href, location.href).hostname; } catch { return; }
+      if (!domain) return;
+
+      const src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+      const probe = new Image();
+      probe.onload = () => {
+        // Google returns a 16x16 generic globe when no favicon exists.
+        if (probe.naturalWidth < 32) return;
+        const emoji = iconBox.querySelector('.card-icon-emoji');
+        const img = document.createElement('img');
+        img.className = 'card-favicon';
+        img.alt = '';
+        img.src = src;
+        if (emoji) emoji.remove();
+        iconBox.appendChild(img);
+      };
+      probe.src = src;
+    });
   }());
   </script>
   <script>
