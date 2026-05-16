@@ -365,6 +365,18 @@
         </div>
       </div>
 
+      <div class="card" data-keep-emoji>
+        <a class="card-link" href="https://web.telegram.org/k/#@OdinRuinBot" target="_blank" rel="noopener">
+          <div class="card-icon"><span class="card-icon-emoji">🩸</span></div>
+          <div class="card-title">Ruin</div>
+          <div class="card-desc">The Dark Chronicler — one who inscribes your tales with blood on vellum.</div>
+        </a>
+        <div class="card-footer">
+          <span class="tag tag-public">Public</span>
+          <span class="card-arrow">→</span>
+        </div>
+      </div>
+
     </div>
   </section>
 
@@ -458,6 +470,7 @@
   // we keep the emoji fallback.
   (function () {
     document.querySelectorAll('.card').forEach(card => {
+      if (card.hasAttribute('data-keep-emoji')) return;
       const link = card.querySelector('.card-link');
       const iconBox = card.querySelector('.card-icon');
       if (!link || !iconBox) return;
