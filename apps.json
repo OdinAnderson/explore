@@ -68,6 +68,19 @@
       "updated": "2026-05-15"
     },
     {
+      "id": "test-tile",
+      "name": "Test Tile",
+      "description": "Throwaway validation tile confirming Bob's identity pipeline works end-to-end. Safe to remove once confirmed.",
+      "url": "https://beachmonkey-ai.github.io/test-tile/",
+      "repo": "BeachMonkey-AI/test-tile",
+      "icon": { "emoji": "🔬", "favicon": "auto" },
+      "tags": ["test"],
+      "status": "live",
+      "visibility": "public",
+      "added": "2026-09-03",
+      "updated": "2026-09-03"
+    },
+    {
       "id": "private-tool",
       "name": "Private Tool",
       "description": "Authenticated apps will appear here.",
