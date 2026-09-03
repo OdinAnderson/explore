@@ -1,0 +1,24 @@
+name: Link check
+
+on:
+  schedule:
+    - cron: '0 13 * * 1' # weekly, Monday 13:00 UTC
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps.json'
+  workflow_dispatch: {}
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-links.mjs
+      # NOTE: scheduled-run failures should file/update a heartbeat issue in
+      # OdinAnderson/bob once Phase 5 sensors exist (implementation-plan.md §7.1).
+      # Not wired up yet — that repo doesn't exist. For now a scheduled failure
+      # just shows red in the Actions tab.

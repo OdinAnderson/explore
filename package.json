@@ -1,15 +1,15 @@
 {
-  "name": "play-odinz-net",
+  "name": "explore",
   "version": "1.0.0",
-  "description": "AI experiments and tools hosted at [play.odinz.net](https://play.odinz.net).",
-  "main": "index.js",
+  "description": "explore.odinz.net — a signpost catalog linking out to small web apps and experiments.",
+  "private": true,
+  "type": "module",
   "scripts": {
+    "build": "node scripts/build.mjs",
+    "check-links": "node scripts/check-links.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "figlet": "^1.11.0"
-  }
+  "license": "ISC"
 }

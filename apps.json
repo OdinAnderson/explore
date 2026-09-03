@@ -1,0 +1,84 @@
+{
+  "$schema": "./apps.schema.json",
+  "version": 1,
+  "apps": [
+    {
+      "id": "spaceship-simulator",
+      "name": "Spacecraft Flight Simulator",
+      "description": "Interactive orbital mechanics simulator with real-time telemetry charts and mission controls.",
+      "url": "https://beachmonkey-ai.github.io/spaceship-simulator/",
+      "repo": "BeachMonkey-AI/spaceship-simulator",
+      "icon": { "emoji": "🛸", "favicon": "auto" },
+      "tags": ["simulation", "physics"],
+      "status": "live",
+      "visibility": "public",
+      "added": "2026-04-05",
+      "updated": "2026-05-06"
+    },
+    {
+      "id": "deepr",
+      "name": "DeepR",
+      "description": "Deep research assistant — explore topics with AI-powered synthesis and source tracing.",
+      "url": "https://ambitious-ground-04dc9da1e.2.azurestaticapps.net/",
+      "repo": "OdinAnderson/DeepR",
+      "icon": { "emoji": "🐋", "favicon": "auto" },
+      "tags": ["research", "ai"],
+      "status": "live",
+      "visibility": "public",
+      "added": "2026-04-05",
+      "updated": "2026-06-30"
+    },
+    {
+      "id": "vrp-modeler",
+      "name": "VRP Offer Modeler",
+      "description": "Model a Voluntary Retirement Program offer — compare stay vs. layoff vs. VRP and find your personal take/stay breakpoint.",
+      "url": "https://beachmonkey-ai.github.io/vrp-modeler/",
+      "repo": "BeachMonkey-AI/vrp-modeler",
+      "icon": { "emoji": "💰", "favicon": "auto" },
+      "tags": ["finance", "modeling"],
+      "status": "live",
+      "visibility": "public",
+      "added": "2026-05-05",
+      "updated": "2026-06-03"
+    },
+    {
+      "id": "koi-pond",
+      "name": "Koi Pond",
+      "description": "Simulate koi growth under varying water quality, stocking, and feeding — explore what-if scenarios for your pond.",
+      "url": "https://beachmonkey-ai.github.io/Koi-pond/",
+      "repo": "BeachMonkey-AI/Koi-pond",
+      "icon": { "emoji": "🐟", "favicon": "auto" },
+      "tags": ["simulation"],
+      "status": "live",
+      "visibility": "public",
+      "added": "2026-05-05",
+      "updated": "2026-05-05"
+    },
+    {
+      "id": "ruin",
+      "name": "Ruin",
+      "description": "The Dark Chronicler — the Telegram AI who inscribes your tales with blood on vellum.",
+      "url": "https://web.telegram.org/k/#@OdinRuinBot",
+      "repo": null,
+      "icon": { "emoji": "🩸", "favicon": "never" },
+      "tags": ["telegram", "storytelling"],
+      "status": "live",
+      "visibility": "public",
+      "added": "2026-05-15",
+      "updated": "2026-05-15"
+    },
+    {
+      "id": "private-tool",
+      "name": "Private Tool",
+      "description": "Authenticated apps will appear here.",
+      "url": "#",
+      "repo": null,
+      "icon": { "emoji": "🤖", "favicon": "auto" },
+      "tags": [],
+      "status": "coming-soon",
+      "visibility": "authenticated",
+      "added": "2026-04-05",
+      "updated": "2026-04-05"
+    }
+  ]
+}

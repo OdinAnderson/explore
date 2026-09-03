@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "explore.odinz.net apps catalog",
+  "type": "object",
+  "required": ["version", "apps"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "apps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/app" }
+    }
+  },
+  "$defs": {
+    "app": {
+      "type": "object",
+      "required": [
+        "id", "name", "description", "url", "repo", "icon",
+        "tags", "status", "visibility", "added", "updated"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Stable slug, dedupe key, immutable once listed."
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One sentence. The card has no room for two."
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Absolute URL, or \"#\" for a status:coming-soon placeholder with nothing live yet."
+        },
+        "repo": {
+          "type": ["string", "null"],
+          "pattern": "^[^/]+/[^/]+$",
+          "description": "\"owner/repo\", or null when there is no source repo (e.g. Ruin)."
+        },
+        "icon": {
+          "type": "object",
+          "required": ["emoji", "favicon"],
+          "additionalProperties": false,
+          "properties": {
+            "emoji": { "type": "string", "minLength": 1 },
+            "favicon": {
+              "enum": ["auto", "never"],
+              "description": "\"auto\" lets the client-side favicon-swap try to replace the emoji; \"never\" opts out (data-keep-emoji)."
+            }
+          }
+        },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "status": { "enum": ["live", "coming-soon", "archived"] },
+        "visibility": {
+          "enum": ["public", "authenticated"],
+          "description": "Drives tag colour and section placement. Presentation only — Explore doesn't host or gate the apps."
+        },
+        "added": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "updated": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+      }
+    }
+  }
+}
