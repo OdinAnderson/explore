@@ -31,8 +31,8 @@
 param(
     [string]$GitHubOrg           = "OdinAnderson",
     [string]$GitHubRepo          = "explore",
-    [string]$GitHubBranch        = "master",          # repo was pushed to master
-    [string]$ResourceGroup       = "explore-odinz-rg",
+    [string]$GitHubBranch        = "main",
+    [string]$ResourceGroup       = "Explore",
     [string]$Location            = "eastus2",
     [string]$SwaName             = "explore-odinz-swa",
     [string]$CaeName             = "explore-odinz-cae",
