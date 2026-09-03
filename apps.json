@@ -68,6 +68,19 @@
       "updated": "2026-05-15"
     },
     {
+      "id": "particle-playground",
+      "name": "Particle Playground",
+      "description": "Tap or click anywhere for a burst of physics-driven particles.",
+      "url": "https://beachmonkey-ai.github.io/particle-playground/",
+      "repo": "BeachMonkey-AI/particle-playground",
+      "icon": { "emoji": "✨", "favicon": "auto" },
+      "tags": ["canvas", "fun", "demo"],
+      "status": "live",
+      "visibility": "public",
+      "added": "2026-09-03",
+      "updated": "2026-09-03"
+    },
+    {
       "id": "private-tool",
       "name": "Private Tool",
       "description": "Authenticated apps will appear here.",
