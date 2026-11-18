@@ -70,7 +70,7 @@
     {
       "id": "private-tool",
       "name": "Private Tool",
-      "description": "Authenticated apps will appear here.",
+      "description": "Placeholder for tools that need sign-in.",
       "url": "#",
       "repo": null,
       "icon": { "emoji": "🤖", "favicon": "auto" },
@@ -78,7 +78,20 @@
       "status": "coming-soon",
       "visibility": "authenticated",
       "added": "2026-04-05",
-      "updated": "2026-04-05"
+      "updated": "2026-11-18"
+    },
+    {
+      "id": "flock-dashboard",
+      "name": "Flock Dashboard",
+      "description": "Shared Flock dashboards: backlog, snapshots, and more.",
+      "url": "https://dash.flock.odinz.net",
+      "repo": "OdinAnderson/edge-dashboard",
+      "icon": { "emoji": "📊", "favicon": "never" },
+      "tags": ["dashboard"],
+      "status": "live",
+      "visibility": "authenticated",
+      "added": "2026-11-18",
+      "updated": "2026-11-18"
     }
   ]
 }

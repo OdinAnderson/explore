@@ -48,8 +48,18 @@ In `apps.json`, `"visibility": "authenticated"` marks a tile as needing sign-in.
   build writes it to `private/tiles.json` only.
 - **Placeholder**: `status: "coming-soon"`, whatever the visibility. Renders in
   the public page exactly as before, in the "Sign-in Required" section when
-  authenticated. It carries no real data.
+  authenticated. It carries no real data. Authenticated coming-soon cards
+  carry `class="private-placeholder"` and `data-app-id`. The oaks loader hides
+  those cards only after at least one private tile has been shown. Signed out,
+  a failed `/_sso/me`, or a missing, forbidden, or empty tile list leaves the
+  placeholder on the page.
 - **Public tile**: `visibility: "public"`. Renders in the public page.
+
+Today **Flock Dashboard** (`https://dash.flock.odinz.net`, repo
+`OdinAnderson/edge-dashboard`) is the private tile. Its icon is the 📊 emoji
+with `favicon: "never"`, so the card does not send that hostname to a favicon
+service. **Private Tool** remains the public coming-soon placeholder. The
+Azure build has neither the Flock Dashboard name nor its URL.
 
 `private/tiles.json` holds the card fields as raw JSON
 (`id, name, description, url, repo, icon, tags, status`). `private/index.html`
@@ -72,8 +82,10 @@ The loader uses the same class names as the hub: `id-anchor`, `pawn-btn`,
 `account-name`, `account-email`, `account-provider`, `account-signout`,
 `signout-btn`.
 
-1. The loader paints the signed-out pawn immediately: an empty pawn chip.
-   Opening it offers **Sign in with Microsoft** and **Sign in with Google**
+1. The loader paints the signed-out pawn immediately: a person-outline
+   silhouette (head and shoulders) in the chip. Signed in, the chip shows
+   initials and the name. Opening the signed-out pawn offers **Sign in with
+   Microsoft** and **Sign in with Google**
    (Microsoft first). Each link goes to the hub and comes back to the current
    page, for example
    `https://auth.odinz.net/oauth/login/microsoft?rd=<current URL>`
@@ -88,11 +100,15 @@ The loader uses the same class names as the hub: `id-anchor`, `pawn-btn`,
    when the name is empty, upper case.
 4. If the visitor is signed in and the build has private tiles, it fetches
    `/private/tiles.json` and renders them in a "🔒 Private" section above the
-   footer.
-5. A 403 on the tile list leaves the signed-in pawn and omits the Private
-   section.
+   footer. After at least one private tile is shown, it hides every
+   `.private-placeholder` card (the Private Tool coming-soon placeholder).
+   Public live cards stay visible.
+5. A 403 on the tile list, a missing file, or an empty list leaves the
+   signed-in pawn, omits the Private section, and leaves the placeholder
+   visible.
 6. If `/_sso/me` is missing, fails, or returns non-JSON: the page stays on
-   the signed-out pawn and the public tiles. The footer has no "Sign in" link.
+   the signed-out pawn and the public tiles, including the placeholder. The
+   footer has no "Sign in" link.
 
 The cards are built with `createElement`, `textContent` and `setAttribute`,
 never `innerHTML`. Links must be `http(s)://` or a site path (`/…`); anything
