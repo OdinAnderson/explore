@@ -304,7 +304,7 @@ test('loader: hub missing or failing stays on the signed-out pawn', async t => {
 
 test('loader: pawn stays when the build has no private tiles', async t => {
   // Drop live authenticated entries so this fixture still has HAS_PRIVATE false.
-  // The real catalog's private tile is covered separately.
+  // The real catalog's private tiles are covered separately.
   const js = loader(t, appsWithoutPrivateTiles());
   const signedOut = await runLoader(js, async () => jsonResponse(401, null));
   assert.deepEqual(signedOut.calls.map(c => c.url), ['/_sso/me']);
@@ -366,8 +366,18 @@ test('loader: initials come from the name, else the email local part', async t =
   }
 });
 
-test('loader: signed in with tiles.json shows Flock Dashboard and hides placeholders', async t => {
+test('loader: signed in with tiles.json shows Flock Dashboard and Parley and hides placeholders', async t => {
   const js = loader(t);
+  const parley = {
+    id: 'parley',
+    name: 'Parley',
+    description: 'The page where an agent hands a plan to a person and gets a structured done signal back.',
+    url: 'https://github.com/BeachMonkey-AI/parley',
+    repo: 'BeachMonkey-AI/parley',
+    icon: { emoji: '🤝', favicon: 'never' },
+    tags: ['handoff'],
+    status: 'live',
+  };
   const flock = {
     id: 'flock-dashboard',
     name: 'Flock Dashboard',
@@ -385,7 +395,7 @@ test('loader: signed in with tiles.json shows Flock Dashboard and hides placehol
         provider: 'microsoft', csrf: 'tok123',
       });
     }
-    if (url === '/private/tiles.json') return jsonResponse(200, { version: 1, tiles: [flock] });
+    if (url === '/private/tiles.json') return jsonResponse(200, { version: 1, tiles: [flock, parley] });
     return jsonResponse(404, null);
   });
   assert.deepEqual(res.calls.map(c => c.url), ['/_sso/me', '/private/tiles.json']);
@@ -396,8 +406,9 @@ test('loader: signed in with tiles.json shows Flock Dashboard and hides placehol
   const section = res.root.querySelector('section');
   assert.ok(section, 'private section inserted');
   assert.match(section.textContent, /Private/);
-  assert.equal(section.querySelector('.card-title').textContent, 'Flock Dashboard');
-  assert.equal(section.querySelector('.card-link').href, 'https://dash.flock.odinz.net');
+  assert.deepEqual(section.querySelectorAll('.card-title').map(n => n.textContent), ['Flock Dashboard', 'Parley']);
+  assert.deepEqual(section.querySelectorAll('.card-link').map(n => n.href),
+    ['https://dash.flock.odinz.net', 'https://github.com/BeachMonkey-AI/parley']);
   assertPlaceholdersHidden(res);
   assert.deepEqual(res.errors, []);
 });

@@ -12,6 +12,11 @@ const SECRET_STRINGS = [SECRET.name, SECRET.url, 'zq7x'];
 const HUB_MARKERS = ['/_sso/', 'auth.odinz.net', 'pawn.js', 'pawn.css'];
 const FLOCK_NAME = 'Flock Dashboard';
 const FLOCK_URL = 'https://dash.flock.odinz.net';
+const PARLEY_NAME = 'Parley';
+const PARLEY_URL = 'https://github.com/BeachMonkey-AI/parley';
+const WODIN_URL = 'https://github.com/BeachMonkey-AI/WODin';
+// Every real private tile's name and url. None may appear outside private/tiles.json.
+const REAL_PRIVATE_STRINGS = [FLOCK_NAME, FLOCK_URL, PARLEY_NAME, PARLEY_URL];
 
 function privateLive(apps) {
   return apps.filter(a => a.visibility === 'authenticated' && a.status !== 'coming-soon');
@@ -25,12 +30,13 @@ function cardClass(app) {
   ].filter(Boolean).join(' ');
 }
 
-function assertNoFlock(dir, files, label) {
+function assertNoRealPrivate(dir, files, label) {
   for (const f of files) {
     if (f.endsWith('.png')) continue;
     const body = read(dir, f);
-    assert.ok(!body.includes(FLOCK_NAME), `${label}: ${f} must not contain "${FLOCK_NAME}"`);
-    assert.ok(!body.includes(FLOCK_URL), `${label}: ${f} must not contain "${FLOCK_URL}"`);
+    for (const s of REAL_PRIVATE_STRINGS) {
+      assert.ok(!body.includes(s), `${label}: ${f} must not contain "${s}"`);
+    }
   }
 }
 
@@ -94,7 +100,7 @@ test('default build: no private dir, no VERSION, ships the SWA config', t => {
     assert.ok(files.includes(f), `${f} is emitted`);
   }
   assertNoHub(out, files, 'default build');
-  assertNoFlock(out, files, 'default build');
+  assertNoRealPrivate(out, files, 'default build');
   assert.equal(loaderScript(read(out, 'index.html')), null);
   assert.match(read(out, 'index.html'), /data-app-id="private-tool"/);
   assert.match(read(out, 'index.html'), /class="card coming-soon private-placeholder"/);
@@ -111,7 +117,7 @@ test('default build with a live private tile: no private data in any file', t =>
   const files = listFiles(out);
   assert.ok(!existsSync(path.join(out, 'private')), 'no private dir');
   assertNoSecrets(out, files.filter(f => !f.endsWith('.png')), 'default build');
-  assertNoFlock(out, files, 'default build');
+  assertNoRealPrivate(out, files, 'default build');
   assertNoHub(out, files, 'default build');
   // The visible cards are unchanged by adding a private tile.
   const plain = path.join(dir, 'plain');
@@ -152,12 +158,14 @@ test('oaks build: the private tile is only in private/tiles.json', t => {
     repo: SECRET.repo, icon: SECRET.icon, tags: SECRET.tags, status: SECRET.status,
   });
   assert.equal(tiles.tiles.find(tile => tile.id === 'flock-dashboard').url, FLOCK_URL);
+  assert.equal(tiles.tiles.find(tile => tile.id === 'parley').url, PARLEY_URL);
 
   const html = read(out, 'index.html');
   assert.ok(!html.includes(SECRET.name), 'index.html has no private name');
   assert.ok(!html.includes(SECRET.url), 'index.html has no private url');
-  assert.ok(!html.includes(FLOCK_NAME), 'index.html has no Flock Dashboard name');
-  assert.ok(!html.includes(FLOCK_URL), 'index.html has no Flock Dashboard url');
+  for (const s of REAL_PRIVATE_STRINGS) {
+    assert.ok(!html.includes(s), `index.html has no "${s}"`);
+  }
   assertNoSecrets(out, files.filter(f => f !== 'private/tiles.json' && !f.endsWith('.png')), 'oaks build');
 
   // Public cards are the same as the default build's.
@@ -219,7 +227,7 @@ test('oaks index includes the sign-in loader; the default index does not', t => 
   assert.ok(!js.includes('sso-bar'));
   assert.ok(!js.includes('everywhere'));
   assert.ok(!js.includes("'/private/'"), 'no footer sign-in link to /private/');
-  // The real catalog's private tile is Flock Dashboard, so the pawn loader
+  // The real catalog's private tiles are Flock Dashboard and Parley, so the pawn loader
   // knows there is something to fetch after /_sso/me.
   assert.match(js, /var HAS_PRIVATE = true;/);
   assert.match(js, /setAttribute\('viewBox', '0 0 24 24'\)/);
@@ -227,8 +235,9 @@ test('oaks index includes the sign-in loader; the default index does not', t => 
   assert.match(js, /M5\.4 19\.2c\.4-3\.15 3\.15-5\.4 6\.6-5\.4s6\.2 2\.25 6\.6 5\.4/);
   assert.ok(!js.includes('M22.5 9c-2.21'), 'chess pawn glyph is gone');
   assert.match(js, /querySelectorAll\('\.private-placeholder'\)/);
-  assert.ok(!oaksHtml.includes(FLOCK_NAME));
-  assert.ok(!oaksHtml.includes(FLOCK_URL));
+  for (const s of REAL_PRIVATE_STRINGS) {
+    assert.ok(!oaksHtml.includes(s), `oaks index.html has no "${s}"`);
+  }
 });
 
 test('oaks loader: HAS_PRIVATE reflects whether the build has private tiles', t => {
@@ -262,7 +271,7 @@ test('coming-soon placeholders render publicly whatever their visibility', t => 
   }
 });
 
-test('real catalog: Flock Dashboard is private and Private Tool stays on the public page', t => {
+test('real catalog: Flock Dashboard and Parley are private, WODin and Private Tool are public', t => {
   const dir = tempDir(t);
   const azure = path.join(dir, 'azure');
   const oaks = path.join(dir, 'oaks');
@@ -271,33 +280,48 @@ test('real catalog: Flock Dashboard is private and Private Tool stays on the pub
 
   for (const out of [azure, oaks]) {
     const html = read(out, 'index.html');
-    const cards = cardsOf(html);
-    assert.ok(cards.some(c => c.title === 'DeepR' && c.cls === 'card'));
+    const cards = cardsOf(html).map(c => ({ ...c, href: unescapeHtml(c.href), title: unescapeHtml(c.title) }));
+    for (const name of ['DeepR', 'Ruin', 'Spacecraft Flight Simulator', 'Galactic Colonization Simulator', 'VRP Offer Modeler']) {
+      assert.ok(cards.some(c => c.title === name && c.cls === 'card'), `${name} is a public live card`);
+    }
+    assert.ok(cards.some(c => c.title === 'WODin' && c.cls === 'card' && c.href === WODIN_URL), 'WODin links to its GitHub repo');
     assert.ok(cards.some(c => c.title === 'Private Tool' && c.cls === 'card coming-soon private-placeholder' && c.href === '#'));
     assert.ok(!cards.some(c => c.title === FLOCK_NAME));
-    assert.ok(!html.includes(FLOCK_NAME));
-    assert.ok(!html.includes(FLOCK_URL));
+    assert.ok(!cards.some(c => c.title === PARLEY_NAME));
+    for (const s of REAL_PRIVATE_STRINGS) {
+      assert.ok(!html.includes(s), `index.html must not contain "${s}"`);
+    }
   }
 
-  assertNoFlock(azure, listFiles(azure), 'azure');
+  assertNoRealPrivate(azure, listFiles(azure), 'azure');
   assert.ok(!existsSync(path.join(azure, 'private')));
   assert.equal(loaderScript(read(azure, 'index.html')), null);
 
   const tiles = JSON.parse(read(oaks, 'private/tiles.json'));
-  assert.deepEqual(tiles.tiles.map(tile => tile.id), ['flock-dashboard']);
-  assert.equal(tiles.tiles[0].name, FLOCK_NAME);
-  assert.equal(tiles.tiles[0].description, 'Shared Flock dashboards: backlog, snapshots, and more.');
-  assert.equal(tiles.tiles[0].url, FLOCK_URL);
-  assert.equal(tiles.tiles[0].repo, 'OdinAnderson/edge-dashboard');
-  assert.deepEqual(tiles.tiles[0].icon, { emoji: '📊', favicon: 'never' });
-  assert.deepEqual(tiles.tiles[0].tags, ['dashboard']);
-  assert.equal(tiles.tiles[0].status, 'live');
+  assert.deepEqual(tiles.tiles.map(tile => tile.id), ['flock-dashboard', 'parley']);
+  const flock = tiles.tiles[0];
+  assert.equal(flock.name, FLOCK_NAME);
+  assert.equal(flock.description, 'Shared Flock dashboards: backlog, snapshots, and more.');
+  assert.equal(flock.url, FLOCK_URL);
+  assert.equal(flock.repo, 'OdinAnderson/edge-dashboard');
+  assert.deepEqual(flock.icon, { emoji: '📊', favicon: 'never' });
+  assert.deepEqual(flock.tags, ['dashboard']);
+  assert.equal(flock.status, 'live');
+  const parley = tiles.tiles[1];
+  assert.equal(parley.name, PARLEY_NAME);
+  assert.equal(parley.description, 'The page where an agent hands a plan to a person and gets a structured done signal back.');
+  assert.equal(parley.url, PARLEY_URL);
+  assert.equal(parley.repo, 'BeachMonkey-AI/parley');
+  assert.deepEqual(parley.icon, { emoji: '🤝', favicon: 'never' });
+  assert.deepEqual(parley.tags, ['handoff']);
+  assert.equal(parley.status, 'live');
   assert.match(loaderScript(read(oaks, 'index.html')), /var HAS_PRIVATE = true;/);
   for (const f of listFiles(oaks)) {
     if (f === 'private/tiles.json' || f.endsWith('.png')) continue;
     const body = read(oaks, f);
-    assert.ok(!body.includes(FLOCK_NAME), `oaks ${f} must not contain the private name`);
-    assert.ok(!body.includes(FLOCK_URL), `oaks ${f} must not contain the private url`);
+    for (const s of REAL_PRIVATE_STRINGS) {
+      assert.ok(!body.includes(s), `oaks ${f} must not contain "${s}"`);
+    }
   }
 });
 
