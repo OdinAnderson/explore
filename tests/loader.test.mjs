@@ -152,19 +152,63 @@ function pawnOf(res) {
   return pawn;
 }
 
-async function runLoader(js, fetchImpl, domOpts) {
-  const dom = makeDom(domOpts);
+function memoryStorage(initial) {
+  const data = { ...(initial || {}) };
+  const ops = [];
+  return {
+    ops,
+    data,
+    getItem(k) {
+      ops.push(['get', k]);
+      return Object.prototype.hasOwnProperty.call(data, k) ? String(data[k]) : null;
+    },
+    setItem(k, v) {
+      ops.push(['set', k, String(v)]);
+      data[k] = String(v);
+    },
+  };
+}
+
+// opts: makeDom options (withPrivateSection) plus href and sessionStorage
+// for the silent hub check.
+async function runLoader(js, fetchImpl, opts) {
+  opts = opts || {};
+  const dom = makeDom(opts);
   const calls = [];
   const errors = [];
+  const nav = { replaced: [], states: [], stampAtHop: undefined };
+  let href = opts.href || PAGE;
+  let storageRef = null;
   const sandbox = {
     document: dom.document,
-    location: { href: PAGE },
+    location: {
+      get href() { return href; },
+      replace(url) {
+        try {
+          nav.stampAtHop = storageRef ? storageRef.getItem('edgeauth-sso-checked') : null;
+        } catch (e) {
+          nav.stampAtHop = null;
+        }
+        nav.replaced.push(String(url));
+      },
+    },
+    history: {
+      state: null,
+      replaceState(_state, _title, url) {
+        nav.states.push(String(url));
+        href = String(url);
+      },
+    },
     console: { error: (...a) => errors.push(a), warn: (...a) => errors.push(a), log() {} },
-    fetch: (url, opts) => { calls.push({ url, opts }); return fetchImpl(url, opts); },
+    fetch: (url, init) => { calls.push({ url, opts: init }); return fetchImpl(url, init); },
   };
+  if (opts.sessionStorage !== undefined) {
+    storageRef = opts.sessionStorage;
+    sandbox.sessionStorage = opts.sessionStorage;
+  }
   vm.runInNewContext(js, sandbox);
   for (let i = 0; i < 20; i++) await new Promise(r => setImmediate(r));
-  return { ...dom, calls, errors };
+  return { ...dom, calls, errors, nav, href: () => href };
 }
 
 function loader(t, apps) {
@@ -485,6 +529,168 @@ test('loader: with no Private section on the page, signed-in tiles get one fallb
   assert.deepEqual(fallback.querySelectorAll('.card-title').map(n => n.textContent), ['Flock Dashboard']);
   assertPublicUntouched(res);
   assert.deepEqual(res.errors, []);
+});
+
+const TEN_MIN = 10 * 60 * 1000;
+
+function silentHopUrl(rd) {
+  return 'https://auth.odinz.net/login?silent=1&rd=' + encodeURIComponent(rd);
+}
+
+test('loader: signed out with no recent check hops to the hub silent login', async t => {
+  const js = loader(t, [...readApps().apps, SECRET]);
+  const store = memoryStorage();
+  const before = Date.now();
+  const res = await runLoader(js, async () => jsonResponse(200, { signed_in: false }), {
+    sessionStorage: store,
+  });
+  const after = Date.now();
+  assert.deepEqual(res.calls.map(c => c.url), ['/_sso/me']);
+  assert.deepEqual(res.nav.states, []);
+  assert.deepEqual(res.nav.replaced, [silentHopUrl(PAGE)]);
+  assert.match(res.nav.replaced[0], /login\?silent=1/);
+  assert.equal(res.nav.stampAtHop, store.data['edgeauth-sso-checked']);
+  const stamped = Number(store.data['edgeauth-sso-checked']);
+  assert.ok(stamped >= before && stamped <= after, 'stamp is written before the hop');
+  assert.equal(store.ops[0][0], 'get');
+  assert.equal(store.ops[1][0], 'set');
+  assert.equal(store.ops[1][1], 'edgeauth-sso-checked');
+  assertSignedOutPawn(pawnOf(res));
+  assertNoPrivateTiles(res);
+  assert.deepEqual(res.errors, []);
+});
+
+test('loader: a fresh edgeauth-sso-checked stamp stays signed out', async t => {
+  const js = loader(t);
+  const store = memoryStorage({ 'edgeauth-sso-checked': String(Date.now() - TEN_MIN + 5000) });
+  const res = await runLoader(js, async () => jsonResponse(200, { signed_in: false }), {
+    sessionStorage: store,
+  });
+  assert.deepEqual(res.nav.replaced, []);
+  assert.deepEqual(res.nav.states, []);
+  assert.equal(store.ops.filter(op => op[0] === 'set').length, 0);
+  assertSignedOutPawn(pawnOf(res));
+  assert.deepEqual(res.errors, []);
+});
+
+test('loader: a stamp 10 minutes old hops again', async t => {
+  const js = loader(t);
+  const store = memoryStorage({ 'edgeauth-sso-checked': String(Date.now() - TEN_MIN) });
+  const res = await runLoader(js, async () => jsonResponse(200, { signed_in: false }), {
+    sessionStorage: store,
+  });
+  assert.deepEqual(res.nav.replaced, [silentHopUrl(PAGE)]);
+  assert.ok(Number(store.data['edgeauth-sso-checked']) > Date.now() - 5000);
+  assertSignedOutPawn(pawnOf(res));
+});
+
+test('loader: sso=none stores the stamp, strips the parameter, and stays', async t => {
+  const js = loader(t);
+  const start = PAGE + '&sso=none&y=2#section';
+  const cleaned = 'https://explore-new.odinz.net/catalog?x=1&y=2#section';
+  const store = memoryStorage();
+  const before = Date.now();
+  const res = await runLoader(js, async () => jsonResponse(200, { signed_in: false }), {
+    sessionStorage: store,
+    href: start,
+  });
+  assert.deepEqual(res.nav.replaced, [], 'sso=none does not hop');
+  assert.deepEqual(res.nav.states, [cleaned]);
+  assert.equal(res.href(), cleaned);
+  const stamped = Number(store.data['edgeauth-sso-checked']);
+  assert.ok(stamped >= before && stamped <= Date.now());
+  const pawn = pawnOf(res);
+  assert.equal(pawn.attributes['data-state'], 'signed-out');
+  assert.ok(pawn.querySelector('.pawn-icon'));
+  const links = byClass(pawn, 'provider-btn');
+  const rd = new URL(links[0].href).searchParams.get('rd');
+  assert.equal(rd, cleaned, 'currentUrl() omits sso=none');
+  assert.equal(rd.includes('sso='), false);
+  assertNoPrivateTiles(res);
+  assert.deepEqual(res.errors, []);
+});
+
+test('loader: sso=none still strips the URL when sessionStorage throws', async t => {
+  const js = loader(t);
+  const start = 'https://explore-new.odinz.net/catalog?sso=none#top';
+  const store = {
+    getItem() { throw new Error('blocked'); },
+    setItem() { throw new Error('blocked'); },
+  };
+  const res = await runLoader(js, async () => jsonResponse(200, { signed_in: false }), {
+    sessionStorage: store,
+    href: start,
+  });
+  assert.deepEqual(res.nav.replaced, []);
+  assert.deepEqual(res.nav.states, ['https://explore-new.odinz.net/catalog#top']);
+  assert.equal(pawnOf(res).attributes['data-state'], 'signed-out');
+  assert.deepEqual(res.errors, []);
+});
+
+test('loader: sessionStorage unavailable does not hop', async t => {
+  const js = loader(t);
+  const store = {
+    getItem() { throw new Error('blocked'); },
+    setItem() { throw new Error('blocked'); },
+  };
+  const res = await runLoader(js, async () => jsonResponse(200, { signed_in: false }), {
+    sessionStorage: store,
+  });
+  assert.deepEqual(res.nav.replaced, []);
+  assert.deepEqual(res.nav.states, []);
+  assert.equal(pawnOf(res).attributes['data-state'], 'signed-out');
+  assert.deepEqual(res.errors, []);
+});
+
+test('loader: setItem failure on the hop path stays signed out', async t => {
+  const js = loader(t);
+  const store = {
+    getItem() { return null; },
+    setItem() { throw new Error('quota'); },
+  };
+  const res = await runLoader(js, async () => jsonResponse(200, { signed_in: false }), {
+    sessionStorage: store,
+  });
+  assert.deepEqual(res.nav.replaced, []);
+  assert.equal(pawnOf(res).attributes['data-state'], 'signed-out');
+  assert.deepEqual(res.errors, []);
+});
+
+test('loader: a failed /_sso/me does not hop', async t => {
+  const js = loader(t, [...readApps().apps, SECRET]);
+  const failures = [
+    async () => { throw new TypeError('Failed to fetch'); },
+    async () => jsonResponse(404, null),
+    async () => jsonResponse(500, { signed_in: false }),
+    async () => ({ ok: true, status: 200, headers: { get: () => 'text/html' }, json: async () => ({ signed_in: false }) }),
+  ];
+  for (const f of failures) {
+    const store = memoryStorage();
+    const res = await runLoader(js, f, { sessionStorage: store });
+    assert.deepEqual(store.ops, [], 'storage is left alone when /_sso/me fails');
+    assert.deepEqual(res.nav.replaced, []);
+    assert.deepEqual(res.nav.states, []);
+    assertSignedOutPawn(pawnOf(res));
+    assert.deepEqual(res.errors, []);
+  }
+});
+
+test('loader: signed in does not hop or touch the silent-check stamp', async t => {
+  const js = loader(t, [...readApps().apps, SECRET]);
+  const store = memoryStorage();
+  const res = await runLoader(js, async url => {
+    if (url === '/_sso/me') {
+      return jsonResponse(200, {
+        signed_in: true, email: 'a@example.com', name: 'Ada Lovelace',
+        provider: 'microsoft', csrf: 'tok123',
+      });
+    }
+    return jsonResponse(200, { version: 1, tiles: [] });
+  }, { sessionStorage: store });
+  assert.deepEqual(store.ops, []);
+  assert.deepEqual(res.nav.replaced, []);
+  assert.equal(pawnOf(res).attributes['data-state'], 'signed-in');
+  assertNoPrivateTiles(res);
 });
 
 test('loader: signed in with an empty tile list keeps the one Private section and placeholders, adds no second section', async t => {

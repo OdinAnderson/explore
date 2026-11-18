@@ -295,6 +295,30 @@ test('oaks pawn CSS draws one accent circle, not a double ring; azure has none',
   assert.ok(!azureHtml.includes('pawn'), 'azure never mentions the pawn');
 });
 
+const SILENT_MARKERS = ['login?silent=1', 'edgeauth-sso-checked', 'sso=none', 'replaceState'];
+
+test('oaks loader includes the silent hub hop; the Azure build does not', t => {
+  const dir = tempDir(t);
+  const oaks = path.join(dir, 'oaks');
+  const azure = path.join(dir, 'azure');
+  buildOk(t, ['--out', oaks, '--target', 'oaks']);
+  buildOk(t, ['--out', azure]);
+
+  const js = loaderScript(read(oaks, 'index.html'));
+  assert.ok(js, 'loader present');
+  for (const s of SILENT_MARKERS) {
+    assert.ok(js.includes(s), `oaks loader contains ${s}`);
+  }
+
+  for (const f of listFiles(azure)) {
+    if (f.endsWith('.png')) continue;
+    const body = read(azure, f);
+    for (const s of SILENT_MARKERS) {
+      assert.ok(!body.includes(s), `azure ${f} must not contain "${s}"`);
+    }
+  }
+});
+
 test('oaks loader: HAS_PRIVATE reflects whether the build has private tiles', t => {
   const dir = tempDir(t);
   const apps = writeAppsFixture(dir, [...readApps().apps, SECRET]);
