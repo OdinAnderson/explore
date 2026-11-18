@@ -68,6 +68,19 @@
       "updated": "2026-06-03"
     },
     {
+      "id": "wodin",
+      "name": "WODin",
+      "description": "Workout display tool — turns a planned workout into a phone page the athlete logs against.",
+      "url": "https://github.com/BeachMonkey-AI/WODin",
+      "repo": "BeachMonkey-AI/WODin",
+      "icon": { "emoji": "🏋️", "favicon": "auto" },
+      "tags": ["fitness", "workout"],
+      "status": "live",
+      "visibility": "public",
+      "added": "2026-11-18",
+      "updated": "2026-11-18"
+    },
+    {
       "id": "private-tool",
       "name": "Private Tool",
       "description": "Placeholder for tools that need sign-in.",
@@ -88,6 +101,19 @@
       "repo": "OdinAnderson/edge-dashboard",
       "icon": { "emoji": "📊", "favicon": "never" },
       "tags": ["dashboard"],
+      "status": "live",
+      "visibility": "authenticated",
+      "added": "2026-11-18",
+      "updated": "2026-11-18"
+    },
+    {
+      "id": "parley",
+      "name": "Parley",
+      "description": "The page where an agent hands a plan to a person and gets a structured done signal back.",
+      "url": "https://github.com/BeachMonkey-AI/parley",
+      "repo": "BeachMonkey-AI/parley",
+      "icon": { "emoji": "🤝", "favicon": "never" },
+      "tags": ["handoff"],
       "status": "live",
       "visibility": "authenticated",
       "added": "2026-11-18",
