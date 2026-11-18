@@ -57,11 +57,14 @@ In `apps.json`, `"visibility": "authenticated"` marks a tile as needing sign-in.
   placeholder on the page.
 - **Public tile**: `visibility: "public"`. Renders in the public page.
 
-Today **Flock Dashboard** (`https://dash.flock.odinz.net`, repo
-`OdinAnderson/edge-dashboard`) is the private tile. Its icon is the 📊 emoji
-with `favicon: "never"`, so the card does not send that hostname to a favicon
-service. **Private Tool** remains the public coming-soon placeholder. The
-Azure build has neither the Flock Dashboard name nor its URL.
+Today the private tiles are **Flock Dashboard** (`https://dash.flock.odinz.net`,
+repo `OdinAnderson/edge-dashboard`, 📊) and **Parley**
+(`https://github.com/BeachMonkey-AI/parley`, repo `BeachMonkey-AI/parley`, 🤝).
+Both use `favicon: "never"`, so the cards do not send their hostnames to a
+favicon service. **Private Tool** remains the public coming-soon placeholder.
+**WODin** is a public tile linking to its GitHub repo,
+`https://github.com/BeachMonkey-AI/WODin`. The Azure/default build contains
+neither private name nor either private URL.
 
 `private/tiles.json` holds the card fields as raw JSON
 (`id, name, description, url, repo, icon, tags, status`). `private/index.html`
