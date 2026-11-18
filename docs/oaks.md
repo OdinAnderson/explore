@@ -224,7 +224,10 @@ bash deploy/deploy.sh v2026.11.18-1
    - checks `curl -s --resolve "explore-new.odinz.net:443:127.0.0.1"
      https://explore-new.odinz.net/VERSION` reports the tag. A mismatch is a
      failure, and `current` is switched back to the previous release;
-   - keeps the newest 5 releases plus `current`, and removes the rest.
+   - keeps the release `current` points at, plus the 3 most recent other
+     releases (by install/use time), and deletes every other release directory
+     and its manifest. At most 4 releases remain. `current` is never pruned,
+     even when it is older than those three.
 
 No service is restarted: the site is static. Running it again with the same tag
 is safe. `EXPLORE_HOSTNAME` overrides the hostname that is checked (default
@@ -232,7 +235,8 @@ is safe. `EXPLORE_HOSTNAME` overrides the hostname that is checked (default
 
 ### Rollback
 
-Run the script with an older tag:
+Rollback still works by running the script with an older tag, but only while
+that tag remains in the 3 previous releases (or is current):
 
 ```bash
 bash deploy/deploy.sh v2026.11.10-1

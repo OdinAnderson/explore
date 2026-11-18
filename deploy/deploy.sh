@@ -181,13 +181,16 @@ if [ "$got" != "$tag" ]; then
 fi
 echo "remote: https://$site/VERSION reports $tag"
 
-# Keep the newest 5 releases (by install/use time) plus whatever is current.
+# Keep the release `current` points at, plus the 3 most recent other releases
+# (by install/use time). At most 4 stay. Never prune current, even when it is
+# older than those three. Only other releases count toward the 3.
 keep_current="$(basename "$(readlink "$current")")"
-n=0
+others=0
 find "$releases" -mindepth 1 -maxdepth 1 -type d ! -name '.*' -printf '%T@ %f\n' \
     | sort -rn | while read -r _ name; do
-    n=$((n + 1))
-    if [ "$name" = "$keep_current" ] || [ "$n" -le 5 ]; then continue; fi
+    if [ "$name" = "$keep_current" ]; then continue; fi
+    others=$((others + 1))
+    if [ "$others" -le 3 ]; then continue; fi
     echo "remote: pruning release $name"
     sudo -n rm -rf -- "$releases/$name"
     sudo -n rm -f -- "$manifests/$name.SHA256SUMS"
