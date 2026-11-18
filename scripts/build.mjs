@@ -7,9 +7,9 @@
 //   azure (default)  What the Azure Static Web App deploys. Public data only:
 //                    no private tiles, no sign-in loader, no private/ dir.
 //   oaks             The self-hosted copy behind Caddy on oaks. Adds the
-//                    sign-in loader to index.html and writes private tiles to
-//                    private/tiles.json (served only behind forward_auth).
-//                    Writes VERSION when a version tag is given.
+//                    header pawn and sign-in loader to index.html and writes
+//                    private tiles to private/tiles.json (served only behind
+//                    forward_auth). Writes VERSION when a version tag is given.
 //
 // Usage:
 //   node scripts/build.mjs [--target azure|oaks] [--out <dir>] [--apps <file>]
@@ -169,23 +169,38 @@ function privateTile(app) {
   };
 }
 
-// ── Oaks-only sign-in loader (inlined into index.html for --target oaks) ─────
+// ── Oaks-only header pawn + sign-in loader (inlined for --target oaks) ───────
+// The pawn markup matches the hub's pawn.py (variant C). pawn.js, loaded from
+// the hub, only opens and closes the <details data-pawn> this loader renders.
 function renderOaksLoader(hasPrivate) {
-  return `  <style>
-    .sso-bar { margin-top: 0.6rem; font-size: 0.72rem; color: var(--muted); }
-    .sso-bar a, .sso-bar button {
-      color: var(--muted); text-decoration: none; background: none; border: 0;
-      font: inherit; cursor: pointer; padding: 0;
+  return `  <link rel="stylesheet" href="https://auth.odinz.net/static/pawn.css">
+  <style>
+    .explore-pawn {
+      position: relative;
+      z-index: 40;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      min-height: 2.75rem;
+      padding: 0.55rem 1rem 0.2rem;
+      background: #000;
     }
-    .sso-bar a:hover, .sso-bar button:hover { color: var(--accent); }
-    .sso-bar form { display: inline; }
+    .explore-pawn + .hero { padding-top: 0.6rem; }
+    /* pawn.css paints initials #1a1404 for Dash's gold accent. Explore's accent is purple. */
+    .explore-pawn .id-anchor[data-state="signed-in"] .pawn-chip,
+    .explore-pawn .profile-avatar { color: #fff; }
+    .explore-pawn .provider-btn:hover { background: rgba(124, 106, 247, 0.08); }
   </style>
   <script id="explore-sso-loader">
-  // Oaks build only. Asks the sign-in hub who is signed in (/_sso/me) and, if
-  // allowed, renders the private tiles from /private/tiles.json (behind
-  // forward_auth). Fails quietly: on any error the page stays as it is.
+  // Oaks build only. Paints the shared pawn in the header, asks the sign-in
+  // hub who is signed in (/_sso/me) and, if allowed, renders the private tiles
+  // from /private/tiles.json (behind forward_auth). Fails quietly: on any
+  // /_sso/me error the page stays on the signed-out pawn and the public tiles.
   (function () {
     var HAS_PRIVATE = ${hasPrivate ? 'true' : 'false'};
+    var HUB = 'https://auth.odinz.net';
+    var SVGNS = 'http://www.w3.org/2000/svg';
+    var PAWN_PATH = 'M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03C15.41 27.09 11 31.58 11 39.5h23c0-7.92-4.41-12.41-7.41-13.47C28.56 24.84 29.5 23.03 29.5 21c0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4.5-4z';
     var REPO_PATH = 'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z';
 
     function el(tag, cls, text) {
@@ -198,6 +213,185 @@ function renderOaksLoader(hasPrivate) {
     function safeUrl(u) {
       u = str(u);
       return (/^https?:\\/\\//i.test(u) || /^\\/(?!\\/)/.test(u)) ? u : null;
+    }
+    function svgEl(tag) { return document.createElementNS(SVGNS, tag); }
+    function currentUrl() {
+      try {
+        if (typeof location !== 'undefined' && location && typeof location.href === 'string') return location.href;
+      } catch (e) { /* quiet */ }
+      return '';
+    }
+    // Two letters from the name, else the email's local part. Upper case.
+    // Same split as the hub's pawn.py initials().
+    function initials(name, email) {
+      var source = str(name).trim();
+      if (!source) source = str(email).split('@')[0];
+      var parts = source.split(/[\\s._+-]+/).filter(function (p) { return p; });
+      var letters;
+      if (parts.length >= 2) letters = parts[0].charAt(0) + parts[1].charAt(0);
+      else if (parts.length && parts[0].length >= 2) letters = parts[0].slice(0, 2);
+      else if (parts.length) letters = parts[0].charAt(0);
+      else letters = '?';
+      return letters.toUpperCase();
+    }
+    function visibleName(name, email) {
+      var n = str(name).trim();
+      if (n) return n;
+      var local = str(email).split('@')[0];
+      return local || str(email);
+    }
+    function providerLine(provider) {
+      var key = str(provider).toLowerCase();
+      if (key === 'microsoft') return 'Signed in with Microsoft';
+      if (key === 'google') return 'Signed in with Google';
+      return 'Signed in';
+    }
+    function pawnIcon() {
+      var s = svgEl('svg');
+      s.setAttribute('class', 'pawn-icon');
+      s.setAttribute('viewBox', '9 7 27 34');
+      s.setAttribute('aria-hidden', 'true');
+      s.setAttribute('focusable', 'false');
+      var p = svgEl('path');
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', 'currentColor');
+      p.setAttribute('stroke-width', '2.4');
+      p.setAttribute('stroke-linejoin', 'round');
+      p.setAttribute('stroke-linecap', 'round');
+      p.setAttribute('d', PAWN_PATH);
+      s.appendChild(p);
+      return s;
+    }
+    function microsoftLogo() {
+      var s = svgEl('svg');
+      s.setAttribute('viewBox', '0 0 21 21');
+      s.setAttribute('aria-hidden', 'true');
+      s.setAttribute('focusable', 'false');
+      [['1', '1', '#f25022'], ['11', '1', '#7fba00'], ['1', '11', '#00a4ef'], ['11', '11', '#ffb900']].forEach(function (r) {
+        var n = svgEl('rect');
+        n.setAttribute('x', r[0]);
+        n.setAttribute('y', r[1]);
+        n.setAttribute('width', '9');
+        n.setAttribute('height', '9');
+        n.setAttribute('fill', r[2]);
+        s.appendChild(n);
+      });
+      return s;
+    }
+    function googleLogo() {
+      var s = svgEl('svg');
+      s.setAttribute('viewBox', '0 0 48 48');
+      s.setAttribute('aria-hidden', 'true');
+      s.setAttribute('focusable', 'false');
+      [
+        ['#EA4335', 'M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'],
+        ['#4285F4', 'M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'],
+        ['#FBBC05', 'M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'],
+        ['#34A853', 'M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z']
+      ].forEach(function (pair) {
+        var p = svgEl('path');
+        p.setAttribute('fill', pair[0]);
+        p.setAttribute('d', pair[1]);
+        s.appendChild(p);
+      });
+      return s;
+    }
+    function providerLink(key, label) {
+      var a = el('a', 'provider-btn');
+      a.href = HUB + '/oauth/login/' + key + '?rd=' + encodeURIComponent(currentUrl());
+      a.appendChild(key === 'google' ? googleLogo() : microsoftLogo());
+      a.appendChild(el('span', null, 'Sign in with ' + label));
+      return a;
+    }
+    function buildSignedOut() {
+      var details = el('details', 'id-anchor');
+      details.setAttribute('data-pawn', '');
+      details.setAttribute('data-state', 'signed-out');
+      var summary = el('summary', 'pawn-btn');
+      summary.setAttribute('aria-label', 'Sign in');
+      summary.setAttribute('aria-expanded', 'false');
+      summary.setAttribute('aria-haspopup', 'dialog');
+      summary.setAttribute('aria-controls', 'pawn-menu');
+      var chip = el('span', 'pawn-chip');
+      var face = el('span', 'pawn-face-empty');
+      face.appendChild(pawnIcon());
+      chip.appendChild(face);
+      summary.appendChild(chip);
+      details.appendChild(summary);
+      var card = el('div', 'id-card');
+      card.id = 'pawn-menu';
+      card.setAttribute('role', 'dialog');
+      card.setAttribute('aria-modal', 'false');
+      var signin = el('div', 'id-signin');
+      signin.appendChild(el('p', 'popover-title', 'Sign in'));
+      var list = el('div', 'provider-list');
+      list.appendChild(providerLink('microsoft', 'Microsoft'));
+      list.appendChild(providerLink('google', 'Google'));
+      signin.appendChild(list);
+      card.appendChild(signin);
+      details.appendChild(card);
+      return details;
+    }
+    // Keep the same <details> and <summary> pawn.js already bound. Swap the chip
+    // and the card only.
+    function applySignedIn(details, me) {
+      var email = str(me.email).trim();
+      var name = visibleName(me.name, email);
+      var ini = initials(me.name, email);
+      details.setAttribute('data-state', 'signed-in');
+      var summary = details.querySelector('summary');
+      if (!summary) return;
+      summary.setAttribute('aria-label', 'Account menu, signed in as ' + name);
+      var chip = summary.querySelector('.pawn-chip');
+      if (chip) {
+        while (chip.firstChild) chip.removeChild(chip.firstChild);
+        chip.appendChild(el('span', 'pawn-face-filled', ini));
+      }
+      var label = summary.querySelector('.pawn-label');
+      if (!label) summary.appendChild(el('span', 'pawn-label', name));
+      else label.textContent = name;
+      var card = details.querySelector('.id-card');
+      if (!card) return;
+      while (card.firstChild) card.removeChild(card.firstChild);
+      var profile = el('div', 'id-profile');
+      var who = el('div', 'profile-who');
+      var avatar = el('div', 'profile-avatar', ini);
+      avatar.setAttribute('aria-hidden', 'true');
+      who.appendChild(avatar);
+      var text = el('div');
+      text.appendChild(el('p', 'account-name', name));
+      text.appendChild(el('p', 'account-email', email));
+      text.appendChild(el('p', 'account-provider', providerLine(me.provider)));
+      who.appendChild(text);
+      profile.appendChild(who);
+      profile.appendChild(el('hr', 'popover-rule'));
+      var form = el('form', 'account-signout');
+      form.method = 'post';
+      form.action = '/_sso/logout';
+      var csrf = el('input');
+      csrf.type = 'hidden';
+      csrf.name = 'csrf';
+      csrf.value = str(me.csrf);
+      form.appendChild(csrf);
+      var btn = el('button', 'signout-btn', 'Sign out');
+      btn.type = 'submit';
+      form.appendChild(btn);
+      profile.appendChild(form);
+      card.appendChild(profile);
+    }
+    function mount() {
+      var existing = document.querySelector('.id-anchor');
+      if (existing) return existing;
+      var details = buildSignedOut();
+      var header = el('header', 'explore-pawn');
+      header.appendChild(details);
+      var hero = document.querySelector('.hero');
+      if (hero && hero.parentNode) hero.parentNode.insertBefore(header, hero);
+      else {
+        var foot = document.querySelector('footer');
+        if (foot && foot.parentNode) foot.parentNode.insertBefore(header, foot);
+      }
+      return details;
     }
     function getJson(url) {
       return fetch(url, {
@@ -212,39 +406,6 @@ function renderOaksLoader(hasPrivate) {
       });
     }
     function footer() { return document.querySelector('footer'); }
-    function bar() {
-      var f = footer();
-      if (!f) return null;
-      var b = f.querySelector('.sso-bar');
-      if (!b) { b = el('p', 'sso-bar'); f.appendChild(b); }
-      while (b.firstChild) b.removeChild(b.firstChild);
-      return b;
-    }
-    function showSignIn() {
-      if (!HAS_PRIVATE) return;
-      var b = bar();
-      if (!b) return;
-      var a = el('a', null, 'Sign in');
-      a.href = '/private/';
-      b.appendChild(a);
-    }
-    function showSignedIn(me) {
-      var b = bar();
-      if (!b) return;
-      b.appendChild(document.createTextNode('Signed in as ' + (str(me.email) || str(me.name) || 'you') + ' \\u2013 '));
-      var form = el('form');
-      form.method = 'post';
-      form.action = '/_sso/logout';
-      var csrf = el('input');
-      csrf.type = 'hidden';
-      csrf.name = 'csrf';
-      csrf.value = str(me.csrf);
-      form.appendChild(csrf);
-      var btn = el('button', null, 'Sign out');
-      btn.type = 'submit';
-      form.appendChild(btn);
-      b.appendChild(form);
-    }
     function card(t) {
       var url = safeUrl(t.url);
       if (!url || !t.icon) return null;
@@ -298,17 +459,17 @@ function renderOaksLoader(hasPrivate) {
       f.parentNode.insertBefore(section, f);
     }
 
-    if (typeof fetch !== 'function') return;
+    var pawn = mount();
+    if (typeof fetch !== 'function' || !pawn) return;
     getJson('/_sso/me').then(function (me) {
-      if (!me || me.signed_in !== true) { showSignIn(); return; }
-      showSignedIn(me);
+      if (!me || me.signed_in !== true) return;
+      applySignedIn(pawn, me);
       if (!HAS_PRIVATE) return;
       return getJson('/private/tiles.json').then(showTiles);
-    }).catch(function () {
-      try { if (!document.querySelector('.sso-bar')) showSignIn(); } catch (e) { /* quiet */ }
-    });
+    }).catch(function () { /* stay on the signed-out pawn */ });
   }());
   </script>
+  <script src="https://auth.odinz.net/static/pawn.js" defer></script>
 `;
 }
 

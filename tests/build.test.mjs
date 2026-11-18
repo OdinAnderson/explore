@@ -9,11 +9,26 @@ import {
 } from './helpers.mjs';
 
 const SECRET_STRINGS = [SECRET.name, SECRET.url, 'zq7x'];
+const HUB_MARKERS = ['/_sso/', 'auth.odinz.net', 'pawn.js', 'pawn.css'];
 
 function assertNoSecrets(dir, files, label) {
   for (const f of files) {
     const body = read(dir, f);
     for (const s of SECRET_STRINGS) {
+      assert.ok(!body.includes(s), `${label}: ${f} must not contain "${s}"`);
+    }
+  }
+}
+
+function assertNoHub(dir, files, label) {
+  for (const f of files) {
+    if (f.endsWith('.png')) continue;
+    const body = read(dir, f);
+    // sw.js keeps its network-only rule for /_sso/*. That path is not an identity URL.
+    const markers = f === 'sw.js'
+      ? HUB_MARKERS.filter(s => s !== '/_sso/')
+      : HUB_MARKERS;
+    for (const s of markers) {
       assert.ok(!body.includes(s), `${label}: ${f} must not contain "${s}"`);
     }
   }
@@ -55,6 +70,7 @@ test('default build: no private dir, no VERSION, ships the SWA config', t => {
     'icons/icon-192.png', 'icons/icon-512.png']) {
     assert.ok(files.includes(f), `${f} is emitted`);
   }
+  assertNoHub(out, files, 'default build');
 });
 
 test('default build with a live private tile: no private data in any file', t => {
@@ -67,6 +83,7 @@ test('default build with a live private tile: no private data in any file', t =>
   const files = listFiles(out);
   assert.ok(!existsSync(path.join(out, 'private')), 'no private dir');
   assertNoSecrets(out, files.filter(f => !f.endsWith('.png')), 'default build');
+  assertNoHub(out, files, 'default build');
   // The visible cards are unchanged by adding a private tile.
   const plain = path.join(dir, 'plain');
   buildOk(t, ['--out', plain]);
@@ -83,6 +100,7 @@ test('a default build into a dir that held an oaks build removes private data', 
   assert.ok(!existsSync(path.join(out, 'private')));
   assert.ok(!existsSync(path.join(out, 'VERSION')));
   assertNoSecrets(out, listFiles(out).filter(f => !f.endsWith('.png')), 'rebuilt default');
+  assertNoHub(out, listFiles(out), 'rebuilt default');
 });
 
 test('oaks build: the private tile is only in private/tiles.json', t => {
@@ -139,9 +157,15 @@ test('oaks index includes the sign-in loader; the default index does not', t => 
   const defHtml = read(def, 'index.html');
   assert.equal(loaderScript(defHtml), null);
   assert.ok(!defHtml.includes('/_sso/'), 'default index never mentions the hub');
+  assert.ok(!defHtml.includes('auth.odinz.net'), 'default index never mentions the hub');
+  assert.ok(!defHtml.includes('pawn.js') && !defHtml.includes('pawn.css'));
   assert.ok(!defHtml.includes('/private/'), 'default index never mentions /private/');
+  assert.ok(!defHtml.includes('sso-bar'));
 
   const oaksHtml = read(oaks, 'index.html');
+  assert.match(oaksHtml, /href="https:\/\/auth\.odinz\.net\/static\/pawn\.css"/);
+  assert.match(oaksHtml, /src="https:\/\/auth\.odinz\.net\/static\/pawn\.js" defer/);
+  assert.ok(!oaksHtml.includes('sso-bar'));
   const js = loaderScript(oaksHtml);
   assert.ok(js, 'loader present');
   assert.doesNotThrow(() => new vm.Script(js), 'loader parses');
@@ -151,8 +175,19 @@ test('oaks index includes the sign-in loader; the default index does not', t => 
   assert.match(js, /name = 'csrf'/);
   assert.match(js, /credentials: 'same-origin'/);
   assert.match(js, /'Accept': 'application\/json'/);
+  assert.match(js, /data-pawn/);
+  assert.match(js, /aria-haspopup', 'dialog'/);
+  assert.match(js, /\/oauth\/login\/' \+ key/);
+  const microsoft = js.indexOf("providerLink('microsoft', 'Microsoft')");
+  const google = js.indexOf("providerLink('google', 'Google')");
+  assert.ok(microsoft !== -1 && google !== -1 && microsoft < google, 'Microsoft is offered first');
+  assert.match(js, /Sign in with '/);
+  assert.match(js, /'Sign out'/);
   assert.ok(!/innerHTML/.test(js), 'loader never uses innerHTML');
-  // No private tiles in apps.json today: the Sign in link stays hidden.
+  assert.ok(!js.includes('sso-bar'));
+  assert.ok(!js.includes('everywhere'));
+  assert.ok(!js.includes("'/private/'"), 'no footer sign-in link to /private/');
+  // No private tiles in apps.json today, and the pawn is still rendered.
   assert.match(js, /var HAS_PRIVATE = false;/);
 });
 
