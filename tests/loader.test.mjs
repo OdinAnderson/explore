@@ -18,6 +18,7 @@ class FakeNode {
     this.childNodes = [];
     this.attributes = {};
     this.className = '';
+    this.style = {};
     this.parentNode = null;
     this._text = '';
   }
@@ -35,31 +36,62 @@ class FakeNode {
     return c;
   }
   *walk() { for (const c of this.childNodes) { yield c; if (c.walk) yield* c.walk(); } }
+  matches(sel) {
+    if (sel.startsWith('.')) return classTokens(this).includes(sel.slice(1));
+    return this.tagName === sel;
+  }
   querySelector(sel) {
     for (const n of this.walk()) {
-      if (sel.startsWith('.') ? classTokens(n).includes(sel.slice(1)) : n.tagName === sel) return n;
+      if (n.matches && n.matches(sel)) return n;
     }
     return null;
   }
+  querySelectorAll(sel) {
+    const out = [];
+    for (const n of this.walk()) {
+      if (n.matches && n.matches(sel)) out.push(n);
+    }
+    return out;
+  }
 }
 class FakeText { constructor(t) { this.textContent = String(t); this.parentNode = null; } }
+
+function catalogCard(className, id, title) {
+  const card = new FakeNode('div');
+  card.className = className;
+  card.setAttribute('data-app-id', id);
+  const titleNode = card.appendChild(new FakeNode('div'));
+  titleNode.className = 'card-title';
+  titleNode.textContent = title;
+  return card;
+}
 
 function makeDom() {
   const root = new FakeNode('html');
   const body = root.appendChild(new FakeNode('body'));
   const hero = body.appendChild(new FakeNode('div'));
   hero.className = 'hero';
+  // A public live card, then two authenticated coming-soon placeholders.
+  // private-placeholder is not the first class token.
+  const liveCard = body.appendChild(catalogCard('card', 'deepr', 'DeepR'));
+  const placeholders = [
+    body.appendChild(catalogCard('card coming-soon private-placeholder', 'private-tool', 'Private Tool')),
+    body.appendChild(catalogCard('card coming-soon private-placeholder', 'other-soon', 'Other Soon')),
+  ];
   const footer = body.appendChild(new FakeNode('footer'));
   return {
     hero,
     footer,
     body,
+    liveCard,
+    placeholders,
     document: {
       body,
       createElement: t => new FakeNode(t),
       createElementNS: (_ns, t) => new FakeNode(t),
       createTextNode: t => new FakeText(t),
       querySelector: sel => root.querySelector(sel),
+      querySelectorAll: sel => root.querySelectorAll(sel),
     },
     root,
   };
@@ -120,6 +152,28 @@ function loader(t, apps) {
   return read(out, 'index.html').match(/<script id="explore-sso-loader">([\s\S]*?)<\/script>/)[1];
 }
 
+function assertPlaceholdersVisible(res) {
+  assert.ok(res.placeholders.length >= 2);
+  for (const n of res.placeholders) {
+    assert.equal(n.style.display || '', '');
+    assert.equal(n.parentNode, res.body);
+  }
+  assert.equal(res.liveCard.style.display || '', '');
+  assert.equal(res.liveCard.parentNode, res.body);
+  assert.equal(res.liveCard.querySelector('.card-title').textContent, 'DeepR');
+}
+
+function assertPlaceholdersHidden(res) {
+  for (const n of res.placeholders) assert.equal(n.style.display, 'none');
+  assert.equal(res.liveCard.style.display || '', '');
+  assert.equal(res.liveCard.parentNode, res.body);
+  assert.equal(res.liveCard.querySelector('.card-title').textContent, 'DeepR');
+}
+
+function appsWithoutPrivateTiles() {
+  return readApps().apps.filter(a => !(a.visibility === 'authenticated' && a.status !== 'coming-soon'));
+}
+
 function assertSignedOutPawn(pawn) {
   assert.equal(pawn.attributes['data-state'], 'signed-out');
   const summary = pawn.querySelector('summary');
@@ -129,7 +183,27 @@ function assertSignedOutPawn(pawn) {
   assert.equal(summary.attributes['aria-haspopup'], 'dialog');
   assert.equal(summary.attributes['aria-controls'], 'pawn-menu');
   assert.ok(summary.querySelector('.pawn-chip'));
-  assert.ok(summary.querySelector('.pawn-icon'), 'empty pawn chip');
+  const icon = summary.querySelector('.pawn-icon');
+  assert.ok(icon, 'signed-out chip is a person-outline silhouette');
+  assert.equal(icon.attributes.viewBox, '0 0 24 24');
+  assert.equal(icon.childNodes.length, 2, 'pawnIcon appends a circle and a path');
+  const circle = icon.childNodes[0];
+  const path = icon.childNodes[1];
+  assert.equal(circle.tagName, 'circle');
+  assert.equal(circle.attributes.cx, '12');
+  assert.equal(circle.attributes.cy, '8');
+  assert.equal(circle.attributes.r, '3.6');
+  assert.equal(circle.attributes.fill, 'none');
+  assert.equal(circle.attributes.stroke, 'currentColor');
+  assert.equal(circle.attributes['stroke-width'], '1.8');
+  assert.equal(path.tagName, 'path');
+  assert.equal(path.attributes.d, 'M5.4 19.2c.4-3.15 3.15-5.4 6.6-5.4s6.2 2.25 6.6 5.4');
+  assert.equal(path.attributes.fill, 'none');
+  assert.equal(path.attributes.stroke, 'currentColor');
+  assert.equal(path.attributes['stroke-width'], '1.8');
+  assert.equal(path.attributes['stroke-linecap'], 'round');
+  assert.equal(path.attributes['stroke-linejoin'], 'round');
+  assert.ok(!path.attributes.d.includes('M22.5 9'), 'not the chess pawn');
   assert.equal(summary.querySelector('.pawn-face-filled'), null);
   assert.equal(summary.querySelector('.pawn-label'), null);
   const links = byClass(pawn, 'provider-btn');
@@ -198,6 +272,7 @@ test('loader: signed in renders private cards with textContent and a sign-out fo
   assert.equal(cards.length, 1, 'the javascript: tile is dropped');
   assert.equal(cards[0].querySelector('.card-title').textContent, '<img src=x onerror=alert(1)>');
   assert.equal(cards[0].querySelector('.card-link').href, SECRET.url);
+  assertPlaceholdersHidden(res);
   assert.deepEqual(res.errors, []);
 });
 
@@ -207,6 +282,7 @@ test('loader: signed out shows the pawn with hub provider links, and no private 
   assert.deepEqual(res.calls.map(c => c.url), ['/_sso/me']);
   assertSignedOutPawn(pawnOf(res));
   assert.equal(res.root.querySelector('section'), null);
+  assertPlaceholdersVisible(res);
   assert.deepEqual(res.errors, []);
 });
 
@@ -222,15 +298,19 @@ test('loader: hub missing or failing stays on the signed-out pawn', async t => {
     assert.deepEqual(res.errors, []);
     assert.equal(res.root.querySelector('section'), null);
     assertSignedOutPawn(pawnOf(res));
+    assertPlaceholdersVisible(res);
   }
 });
 
 test('loader: pawn stays when the build has no private tiles', async t => {
-  const js = loader(t); // the real apps.json: no private tiles today
+  // Drop live authenticated entries so this fixture still has HAS_PRIVATE false.
+  // The real catalog's private tile is covered separately.
+  const js = loader(t, appsWithoutPrivateTiles());
   const signedOut = await runLoader(js, async () => jsonResponse(401, null));
   assert.deepEqual(signedOut.calls.map(c => c.url), ['/_sso/me']);
   assertSignedOutPawn(pawnOf(signedOut));
   assert.equal(signedOut.root.querySelector('section'), null);
+  assertPlaceholdersVisible(signedOut);
   assert.deepEqual(signedOut.errors, []);
 
   const signedIn = await runLoader(js, async () => jsonResponse(200, {
@@ -242,6 +322,7 @@ test('loader: pawn stays when the build has no private tiles', async t => {
   assert.equal(pawn.attributes['data-state'], 'signed-in');
   assert.equal(pawn.querySelector('.pawn-face-filled').textContent, 'AL');
   assert.equal(signedIn.root.querySelector('section'), null);
+  assertPlaceholdersVisible(signedIn);
   assert.deepEqual(signedIn.errors, []);
 });
 
@@ -261,6 +342,7 @@ test('loader: signed in but not allowed (403) keeps the signed-in pawn and skips
   assert.equal(pawn.querySelector('.account-provider').textContent, 'Signed in with Google');
   assert.equal(pawn.querySelector('button').textContent, 'Sign out');
   assert.equal(res.root.querySelector('section'), null);
+  assertPlaceholdersVisible(res);
 });
 
 test('loader: initials come from the name, else the email local part', async t => {
@@ -280,5 +362,61 @@ test('loader: initials come from the name, else the email local part', async t =
     assert.equal(pawn.querySelector('.account-email').textContent, me.email);
     assert.equal(pawn.querySelector('.account-provider').textContent, via);
     assert.equal(res.root.querySelector('section'), null);
+    assertPlaceholdersVisible(res);
   }
+});
+
+test('loader: signed in with tiles.json shows Flock Dashboard and hides placeholders', async t => {
+  const js = loader(t);
+  const flock = {
+    id: 'flock-dashboard',
+    name: 'Flock Dashboard',
+    description: 'Shared Flock dashboards: backlog, snapshots, and more.',
+    url: 'https://dash.flock.odinz.net',
+    repo: 'OdinAnderson/edge-dashboard',
+    icon: { emoji: '📊', favicon: 'never' },
+    tags: ['dashboard'],
+    status: 'live',
+  };
+  const res = await runLoader(js, async url => {
+    if (url === '/_sso/me') {
+      return jsonResponse(200, {
+        signed_in: true, email: 'a@example.com', name: 'Ada Lovelace',
+        provider: 'microsoft', csrf: 'tok123',
+      });
+    }
+    if (url === '/private/tiles.json') return jsonResponse(200, { version: 1, tiles: [flock] });
+    return jsonResponse(404, null);
+  });
+  assert.deepEqual(res.calls.map(c => c.url), ['/_sso/me', '/private/tiles.json']);
+  const pawn = pawnOf(res);
+  assert.equal(pawn.attributes['data-state'], 'signed-in');
+  assert.equal(pawn.querySelector('.pawn-icon'), null, 'signed-in chip is initials, not the outline');
+  assert.equal(pawn.querySelector('.pawn-face-filled').textContent, 'AL');
+  const section = res.root.querySelector('section');
+  assert.ok(section, 'private section inserted');
+  assert.match(section.textContent, /Private/);
+  assert.equal(section.querySelector('.card-title').textContent, 'Flock Dashboard');
+  assert.equal(section.querySelector('.card-link').href, 'https://dash.flock.odinz.net');
+  assertPlaceholdersHidden(res);
+  assert.deepEqual(res.errors, []);
+});
+
+test('loader: signed in with an empty tile list leaves placeholders and omits Private', async t => {
+  const js = loader(t);
+  const res = await runLoader(js, async url => {
+    if (url === '/_sso/me') {
+      return jsonResponse(200, {
+        signed_in: true, email: 'a@example.com', name: 'Ada Lovelace',
+        provider: 'microsoft', csrf: 'tok123',
+      });
+    }
+    return jsonResponse(200, { version: 1, tiles: [] });
+  });
+  assert.deepEqual(res.calls.map(c => c.url), ['/_sso/me', '/private/tiles.json']);
+  const pawn = pawnOf(res);
+  assert.equal(pawn.attributes['data-state'], 'signed-in');
+  assert.equal(res.root.querySelector('section'), null);
+  assertPlaceholdersVisible(res);
+  assert.deepEqual(res.errors, []);
 });

@@ -49,7 +49,7 @@ For a server-side app on Azure, `.github/workflows/_container-template.yml` is a
 
 ### Making an experiment private
 
-**Private tiles (oaks).** Set `"visibility": "authenticated"` on a `live` or `archived` entry in `apps.json`. The tile then never appears in the public `index.html` on either site. The oaks build puts it in `private/tiles.json`, which Caddy serves only behind `forward_auth` to the sign-in hub; signed-in, allowed visitors see it in a "Private" section. The Azure build contains no trace of it. `coming-soon` entries render publicly as placeholders whatever their visibility. No tile is private today. Details and the security model: [docs/oaks.md](docs/oaks.md#private-tiles).
+**Private tiles (oaks).** Set `"visibility": "authenticated"` on a `live` or `archived` entry in `apps.json`. The tile then never appears in the public `index.html` on either site. The oaks build puts it in `private/tiles.json`, which Caddy serves only behind `forward_auth` to the sign-in hub; signed-in, allowed visitors see it in a "Private" section. The Azure build contains no trace of it. `coming-soon` entries render publicly as placeholders whatever their visibility. **Flock Dashboard** (`https://dash.flock.odinz.net`) is the private tile. **Private Tool** remains the public coming-soon placeholder; the oaks loader hides that placeholder only after private tiles have rendered for a signed-in visitor. Details and the security model: [docs/oaks.md](docs/oaks.md#private-tiles).
 
 This hides the tile from the sites, not the app it links to (the app must protect itself) and not the `apps.json` entry from anyone who can read this repository.
 

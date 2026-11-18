@@ -122,9 +122,16 @@ const isPrivate = app => app.visibility === 'authenticated' && app.status !== 'c
 // ── Render one card ──────────────────────────────────────────────────────────
 function renderCard(app) {
   const comingSoon = app.status === 'coming-soon';
+  // Authenticated coming-soon cards are the public placeholder for private
+  // tiles. The oaks loader hides .private-placeholder only after those tiles
+  // have actually rendered.
+  const privatePlaceholder = comingSoon && app.visibility === 'authenticated';
   const keepEmoji = app.icon.favicon === 'never';
-  const cardClass = comingSoon ? 'card coming-soon' : 'card';
+  const cardClass = ['card', comingSoon && 'coming-soon', privatePlaceholder && 'private-placeholder']
+    .filter(Boolean)
+    .join(' ');
   const keepEmojiAttr = keepEmoji ? ' data-keep-emoji' : '';
+  const appIdAttr = privatePlaceholder ? ` data-app-id="${escapeHtml(app.id)}"` : '';
   const linkAttrs = comingSoon
     ? `href="#" aria-label="Coming soon"`
     : `href="${escapeHtml(app.url)}" target="_blank" rel="noopener"`;
@@ -137,7 +144,7 @@ function renderCard(app) {
     ? `\n          <a class="card-repo" href="https://github.com/${app.repo}" target="_blank" rel="noopener" aria-label="View source on GitHub">\n            ${REPO_SVG}\n            Repo\n          </a>`
     : '';
 
-  return `      <div class="${cardClass}"${keepEmojiAttr}>
+  return `      <div class="${cardClass}"${keepEmojiAttr}${appIdAttr}>
         <a class="card-link" ${linkAttrs}>
           <div class="card-icon"><span class="card-icon-emoji">${escapeHtml(app.icon.emoji)}</span></div>
           <div class="card-title">${escapeHtml(app.name)}</div>
@@ -170,8 +177,10 @@ function privateTile(app) {
 }
 
 // ── Oaks-only header pawn + sign-in loader (inlined for --target oaks) ───────
-// The pawn markup matches the hub's pawn.py (variant C). pawn.js, loaded from
-// the hub, only opens and closes the <details data-pawn> this loader renders.
+// Class names, data-pawn, pawn.css and pawn.js match the hub's pawn control.
+// The signed-out face is the hub's person-outline silhouette (head and
+// shoulders). pawn.js, loaded from the hub, only opens and closes the
+// <details data-pawn> this loader renders.
 function renderOaksLoader(hasPrivate) {
   return `  <link rel="stylesheet" href="https://auth.odinz.net/static/pawn.css">
   <style>
@@ -192,15 +201,18 @@ function renderOaksLoader(hasPrivate) {
     .explore-pawn .provider-btn:hover { background: rgba(124, 106, 247, 0.08); }
   </style>
   <script id="explore-sso-loader">
-  // Oaks build only. Paints the shared pawn in the header, asks the sign-in
-  // hub who is signed in (/_sso/me) and, if allowed, renders the private tiles
-  // from /private/tiles.json (behind forward_auth). Fails quietly: on any
-  // /_sso/me error the page stays on the signed-out pawn and the public tiles.
+  // Oaks build only. Paints the shared pawn in the header (signed-out face is
+  // a person-outline silhouette), asks the sign-in hub who is signed in
+  // (/_sso/me) and, if allowed, renders the private tiles from
+  // /private/tiles.json (behind forward_auth). Once those tiles are on the
+  // page, authenticated coming-soon placeholders are hidden. Fails quietly:
+  // on any /_sso/me error the page stays on the signed-out pawn and the
+  // public tiles, including the placeholder.
   (function () {
     var HAS_PRIVATE = ${hasPrivate ? 'true' : 'false'};
     var HUB = 'https://auth.odinz.net';
     var SVGNS = 'http://www.w3.org/2000/svg';
-    var PAWN_PATH = 'M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03C15.41 27.09 11 31.58 11 39.5h23c0-7.92-4.41-12.41-7.41-13.47C28.56 24.84 29.5 23.03 29.5 21c0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4.5-4z';
+    var PERSON_PATH = 'M5.4 19.2c.4-3.15 3.15-5.4 6.6-5.4s6.2 2.25 6.6 5.4';
     var REPO_PATH = 'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z';
 
     function el(tag, cls, text) {
@@ -249,16 +261,24 @@ function renderOaksLoader(hasPrivate) {
     function pawnIcon() {
       var s = svgEl('svg');
       s.setAttribute('class', 'pawn-icon');
-      s.setAttribute('viewBox', '9 7 27 34');
+      s.setAttribute('viewBox', '0 0 24 24');
       s.setAttribute('aria-hidden', 'true');
       s.setAttribute('focusable', 'false');
+      var c = svgEl('circle');
+      c.setAttribute('cx', '12');
+      c.setAttribute('cy', '8');
+      c.setAttribute('r', '3.6');
+      c.setAttribute('fill', 'none');
+      c.setAttribute('stroke', 'currentColor');
+      c.setAttribute('stroke-width', '1.8');
+      s.appendChild(c);
       var p = svgEl('path');
       p.setAttribute('fill', 'none');
       p.setAttribute('stroke', 'currentColor');
-      p.setAttribute('stroke-width', '2.4');
-      p.setAttribute('stroke-linejoin', 'round');
+      p.setAttribute('stroke-width', '1.8');
       p.setAttribute('stroke-linecap', 'round');
-      p.setAttribute('d', PAWN_PATH);
+      p.setAttribute('stroke-linejoin', 'round');
+      p.setAttribute('d', PERSON_PATH);
       s.appendChild(p);
       return s;
     }
@@ -444,6 +464,10 @@ function renderOaksLoader(hasPrivate) {
       c.appendChild(foot);
       return c;
     }
+    function hidePrivatePlaceholders() {
+      var nodes = document.querySelectorAll('.private-placeholder');
+      for (var i = 0; i < nodes.length; i++) nodes[i].style.display = 'none';
+    }
     function showTiles(data) {
       var tiles = data && Array.isArray(data.tiles) ? data.tiles : [];
       var cards = tiles.map(card).filter(Boolean);
@@ -457,6 +481,7 @@ function renderOaksLoader(hasPrivate) {
       cards.forEach(function (c) { grid.appendChild(c); });
       section.appendChild(grid);
       f.parentNode.insertBefore(section, f);
+      hidePrivatePlaceholders();
     }
 
     var pawn = mount();
