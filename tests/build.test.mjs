@@ -240,6 +240,46 @@ test('oaks index includes the sign-in loader; the default index does not', t => 
   }
 });
 
+test('oaks pawn CSS draws one accent circle, not a double ring; azure has none', t => {
+  const dir = tempDir(t);
+  const oaks = path.join(dir, 'oaks');
+  const azure = path.join(dir, 'azure');
+  buildOk(t, ['--out', oaks, '--target', 'oaks']);
+  buildOk(t, ['--out', azure, '--target', 'azure']);
+
+  const oaksHtml = read(oaks, 'index.html');
+  const css = (oaksHtml.match(/<link rel="stylesheet" href="https:\/\/auth\.odinz\.net\/static\/pawn\.css">\s*<style>([\s\S]*?)<\/style>/) || [])[1];
+  assert.ok(css, 'oaks inlines the .explore-pawn override block after pawn.css');
+  const rule = sel => {
+    const esc = sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const m = css.match(new RegExp(`(?:^|[},/]\\s*|\\*/\\s*)${esc}\\s*(?:,[^{]*)?\\{([^}]*)\\}`, 'm'));
+    return m ? m[1] : null;
+  };
+  // The outer button draws no visible ring, idle or hovered.
+  const btn = rule('.explore-pawn .id-anchor > .pawn-btn');
+  assert.ok(btn, 'override for the outer .pawn-btn');
+  assert.match(btn, /border-color: transparent/);
+  assert.match(btn, /background: transparent/);
+  assert.match(css, /\.explore-pawn \.id-anchor > \.pawn-btn:hover,/, 'hover keeps the outer ring hidden');
+  // The remaining .pawn-chip circle uses the accent color.
+  assert.match(rule('.explore-pawn .id-anchor > .pawn-btn .pawn-chip') || '', /border-color: var\(--accent\)/);
+  // Hover moved onto the chip: dimmed accent border, text color.
+  assert.match(rule('.explore-pawn .id-anchor > .pawn-btn:hover .pawn-chip') || '', /border-color: var\(--accent-dim\)/);
+  assert.match(css, /\.explore-pawn \.id-anchor > \.pawn-btn:hover \{ color: var\(--text\); \}/);
+  // Keyboard focus stays visible on the interactive element.
+  assert.match(rule('.explore-pawn .id-anchor > .pawn-btn:focus-visible') || '', /outline: 2px solid var\(--accent\)/);
+  // Person-outline glyph is untouched.
+  const js = loaderScript(oaksHtml);
+  assert.match(js, /setAttribute\('viewBox', '0 0 24 24'\)/);
+  assert.match(js, /svgEl\('circle'\)/);
+  assert.match(js, /M5\.4 19\.2c\.4-3\.15/);
+  assert.ok(!js.includes('M22.5 9c-2.21'));
+
+  const azureHtml = read(azure, 'index.html');
+  assert.equal(loaderScript(azureHtml), null, 'azure has no pawn loader');
+  assert.ok(!azureHtml.includes('pawn'), 'azure never mentions the pawn');
+});
+
 test('oaks loader: HAS_PRIVATE reflects whether the build has private tiles', t => {
   const dir = tempDir(t);
   const apps = writeAppsFixture(dir, [...readApps().apps, SECRET]);

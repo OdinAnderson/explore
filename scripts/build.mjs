@@ -199,6 +199,22 @@ function renderOaksLoader(hasPrivate) {
     .explore-pawn .id-anchor[data-state="signed-in"] .pawn-chip,
     .explore-pawn .profile-avatar { color: #fff; }
     .explore-pawn .provider-btn:hover { background: rgba(124, 106, 247, 0.08); }
+    /* One circle only: the button draws no ring of its own; the smaller
+       .pawn-chip circle carries Explore's accent and the hover reaction. */
+    .explore-pawn .id-anchor > .pawn-btn,
+    .explore-pawn .id-anchor > .pawn-btn:hover,
+    .explore-pawn .id-anchor[open] > .pawn-btn {
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+    }
+    .explore-pawn .id-anchor > .pawn-btn:hover { color: var(--text); }
+    .explore-pawn .id-anchor > .pawn-btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .explore-pawn .id-anchor > .pawn-btn .pawn-chip { border-color: var(--accent); }
+    .explore-pawn .id-anchor > .pawn-btn:hover .pawn-chip { border-color: var(--accent-dim); }
   </style>
   <script id="explore-sso-loader">
   // Oaks build only. Paints the shared pawn in the header (signed-out face is
