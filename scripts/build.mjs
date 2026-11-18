@@ -488,15 +488,23 @@ function renderOaksLoader(hasPrivate) {
       var tiles = data && Array.isArray(data.tiles) ? data.tiles : [];
       var cards = tiles.map(card).filter(Boolean);
       if (!cards.length) return;
-      var f = footer();
-      if (!f || !f.parentNode) return;
-      var section = el('section');
-      section.id = 'private-apps';
-      section.appendChild(el('h2', null, '\\ud83d\\udd12 Private'));
-      var grid = el('div', 'grid');
+      // Reuse the page's one Private section (it already holds the
+      // placeholder). Only build a section if the page lacks one.
+      var section = document.querySelector('.private-apps');
+      if (!section) {
+        var f = footer();
+        if (!f || !f.parentNode) return;
+        section = el('section', 'private-apps');
+        section.id = 'private-apps';
+        section.appendChild(el('h2', null, '\\ud83d\\udd12 Private'));
+        f.parentNode.insertBefore(section, f);
+      }
+      var grid = section.querySelector('.grid');
+      if (!grid) {
+        grid = el('div', 'grid');
+        section.appendChild(grid);
+      }
       cards.forEach(function (c) { grid.appendChild(c); });
-      section.appendChild(grid);
-      f.parentNode.insertBefore(section, f);
       hidePrivatePlaceholders();
     }
 

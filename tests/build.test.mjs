@@ -63,6 +63,21 @@ function assertNoHub(dir, files, label) {
   }
 }
 
+// The page has one "🔒 Private" section heading, it wraps the Private Tool
+// placeholder, and no section is headed "Sign-in Required". The placeholder's
+// footer tag "Sign-in required" (lower-case r) is a tag, not a heading, and stays.
+function assertOnePrivateSection(html, label) {
+  const headings = [...html.matchAll(/<h2>([^<]*)<\/h2>/g)].map(m => m[1].trim());
+  assert.deepEqual(headings, ['🌐 Public', '🔒 Private'], `${label}: section headings`);
+  assert.ok(!html.includes('Sign-in Required'), `${label}: no "Sign-in Required" heading`);
+  assert.equal(html.match(/<section class="private-apps"/g)?.length, 1, `${label}: one Private section`);
+  const m = html.match(/<section class="private-apps" id="private-apps">\s*<h2>🔒 Private<\/h2>\s*<div class="grid">([\s\S]*?)<\/div>\s*<\/section>/);
+  assert.ok(m, `${label}: Private section has the heading and a grid`);
+  assert.match(m[1], /data-app-id="private-tool"/, `${label}: placeholder sits in the Private section`);
+  assert.match(m[1], /class="card coming-soon private-placeholder"/);
+  assert.match(m[1], /<span class="tag tag-auth">Sign-in required<\/span>/, `${label}: placeholder tag unchanged`);
+}
+
 function loaderScript(html) {
   const m = html.match(/<script id="explore-sso-loader">([\s\S]*?)<\/script>/);
   return m ? m[1] : null;
@@ -331,6 +346,7 @@ test('real catalog: Flock Dashboard and Parley are private, WODin and Private To
     for (const s of REAL_PRIVATE_STRINGS) {
       assert.ok(!html.includes(s), `index.html must not contain "${s}"`);
     }
+    assertOnePrivateSection(html, out);
   }
 
   assertNoRealPrivate(azure, listFiles(azure), 'azure');

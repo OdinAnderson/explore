@@ -47,8 +47,9 @@ In `apps.json`, `"visibility": "authenticated"` marks a tile as needing sign-in.
   `"archived"`. Never written into `index.html` by either target. The oaks
   build writes it to `private/tiles.json` only.
 - **Placeholder**: `status: "coming-soon"`, whatever the visibility. Renders in
-  the public page exactly as before, in the "Sign-in Required" section when
-  authenticated. It carries no real data. Authenticated coming-soon cards
+  the public page exactly as before, in the "🔒 Private" section when
+  authenticated (both targets; the heading is in the shared `index.html`).
+  It carries no real data. Authenticated coming-soon cards
   carry `class="private-placeholder"` and `data-app-id`. The oaks loader hides
   those cards only after at least one private tile has been shown. Signed out,
   a failed `/_sso/me`, or a missing, forbidden, or empty tile list leaves the
@@ -102,13 +103,16 @@ The loader uses the same class names as the hub: `id-anchor`, `pawn-btn`,
    Initials are two letters from the name, or from the email's local part
    when the name is empty, upper case.
 4. If the visitor is signed in and the build has private tiles, it fetches
-   `/private/tiles.json` and renders them in a "🔒 Private" section above the
-   footer. After at least one private tile is shown, it hides every
+   `/private/tiles.json` and appends them to the page's one "🔒 Private"
+   section (`.private-apps`), the same section that holds the placeholder.
+   After at least one private tile is shown, it hides every
    `.private-placeholder` card (the Private Tool coming-soon placeholder).
-   Public live cards stay visible.
-5. A 403 on the tile list, a missing file, or an empty list leaves the
-   signed-in pawn, omits the Private section, and leaves the placeholder
+   It never adds a second section; only if the page has no `.private-apps`
+   section does it create one above the footer. Public live cards stay
    visible.
+5. A 403 on the tile list, a missing file, an empty list, or a list where no
+   tile survives sanitization leaves the signed-in pawn, keeps the existing
+   Private section and its placeholder visible, and adds no other section.
 6. If `/_sso/me` is missing, fails, or returns non-JSON: the page stays on
    the signed-out pawn and the public tiles, including the placeholder. The
    footer has no "Sign in" link.

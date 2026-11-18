@@ -66,24 +66,48 @@ function catalogCard(className, id, title) {
   return card;
 }
 
-function makeDom() {
+function catalogSection(body, heading, cls) {
+  const section = body.appendChild(new FakeNode('section'));
+  if (cls) {
+    section.className = cls;
+    section.id = cls;
+  }
+  section.appendChild(new FakeNode('h2')).textContent = heading;
+  const grid = section.appendChild(new FakeNode('div'));
+  grid.className = 'grid';
+  return { section, grid };
+}
+
+// Mirrors index.html: hero, a Public section, the one Private section that
+// holds the placeholders, then the footer. withPrivateSection: false drops
+// the Private section (and its placeholders) to exercise the fallback.
+function makeDom({ withPrivateSection = true } = {}) {
   const root = new FakeNode('html');
   const body = root.appendChild(new FakeNode('body'));
   const hero = body.appendChild(new FakeNode('div'));
   hero.className = 'hero';
-  // A public live card, then two authenticated coming-soon placeholders.
-  // private-placeholder is not the first class token.
-  const liveCard = body.appendChild(catalogCard('card', 'deepr', 'DeepR'));
-  const placeholders = [
-    body.appendChild(catalogCard('card coming-soon private-placeholder', 'private-tool', 'Private Tool')),
-    body.appendChild(catalogCard('card coming-soon private-placeholder', 'other-soon', 'Other Soon')),
-  ];
+  const pub = catalogSection(body, '🌐 Public');
+  const liveCard = pub.grid.appendChild(catalogCard('card', 'deepr', 'DeepR'));
+  let privateSection = null;
+  let privateGrid = null;
+  let placeholders = [];
+  if (withPrivateSection) {
+    ({ section: privateSection, grid: privateGrid } = catalogSection(body, '🔒 Private', 'private-apps'));
+    // private-placeholder is not the first class token.
+    placeholders = [
+      privateGrid.appendChild(catalogCard('card coming-soon private-placeholder', 'private-tool', 'Private Tool')),
+      privateGrid.appendChild(catalogCard('card coming-soon private-placeholder', 'other-soon', 'Other Soon')),
+    ];
+  }
   const footer = body.appendChild(new FakeNode('footer'));
   return {
     hero,
     footer,
     body,
     liveCard,
+    publicGrid: pub.grid,
+    privateSection,
+    privateGrid,
     placeholders,
     document: {
       body,
@@ -128,8 +152,8 @@ function pawnOf(res) {
   return pawn;
 }
 
-async function runLoader(js, fetchImpl) {
-  const dom = makeDom();
+async function runLoader(js, fetchImpl, domOpts) {
+  const dom = makeDom(domOpts);
   const calls = [];
   const errors = [];
   const sandbox = {
@@ -152,22 +176,58 @@ function loader(t, apps) {
   return read(out, 'index.html').match(/<script id="explore-sso-loader">([\s\S]*?)<\/script>/)[1];
 }
 
+function assertPublicUntouched(res) {
+  assert.equal(res.liveCard.style.display || '', '');
+  assert.equal(res.liveCard.parentNode, res.publicGrid);
+  assert.equal(res.liveCard.querySelector('.card-title').textContent, 'DeepR');
+  assert.deepEqual(res.publicGrid.childNodes, [res.liveCard], 'no private tiles in Public');
+}
+
 function assertPlaceholdersVisible(res) {
   assert.ok(res.placeholders.length >= 2);
   for (const n of res.placeholders) {
     assert.equal(n.style.display || '', '');
-    assert.equal(n.parentNode, res.body);
+    assert.equal(n.parentNode, res.privateGrid);
   }
-  assert.equal(res.liveCard.style.display || '', '');
-  assert.equal(res.liveCard.parentNode, res.body);
-  assert.equal(res.liveCard.querySelector('.card-title').textContent, 'DeepR');
+  assertPublicUntouched(res);
 }
 
 function assertPlaceholdersHidden(res) {
-  for (const n of res.placeholders) assert.equal(n.style.display, 'none');
-  assert.equal(res.liveCard.style.display || '', '');
-  assert.equal(res.liveCard.parentNode, res.body);
-  assert.equal(res.liveCard.querySelector('.card-title').textContent, 'DeepR');
+  for (const n of res.placeholders) {
+    assert.equal(n.style.display, 'none');
+    assert.equal(n.parentNode, res.privateGrid);
+  }
+  assertPublicUntouched(res);
+}
+
+// Exactly one Private section (the page's own), headed "🔒 Private", and no
+// "Sign-in Required" section heading anywhere. Returns that section.
+function assertOnePrivateSection(res) {
+  const sections = res.root.querySelectorAll('section');
+  assert.equal(sections.length, 2, 'Public + Private only; no second Private section');
+  const headings = res.root.querySelectorAll('h2').map(h => h.textContent);
+  assert.deepEqual(headings, ['🌐 Public', '🔒 Private']);
+  assert.equal(headings.some(h => /Sign-in Required/.test(h)), false);
+  const privates = sections.filter(s => /Private/.test(s.querySelector('h2').textContent));
+  assert.equal(privates.length, 1);
+  assert.equal(privates[0], res.privateSection, 'the existing section is reused');
+  assert.equal(res.root.querySelectorAll('.private-apps').length, 1);
+  return res.privateSection;
+}
+
+// Live tiles the loader added to the Private grid (loader cards are class "card").
+function privateTiles(res) {
+  return res.privateGrid.childNodes.filter(n => n.className === 'card');
+}
+
+function assertNoPrivateTiles(res) {
+  const section = assertOnePrivateSection(res);
+  assert.deepEqual(privateTiles(res), []);
+  const titles = res.root.querySelectorAll('.card-title').map(n => n.textContent);
+  assert.equal(titles.includes('Flock Dashboard'), false);
+  assert.equal(titles.includes('Parley'), false);
+  assertPlaceholdersVisible(res);
+  return section;
 }
 
 function appsWithoutPrivateTiles() {
@@ -265,10 +325,8 @@ test('loader: signed in renders private cards with textContent and a sign-out fo
   assert.equal(/signed in to/i.test(pawn.textContent), false);
   assert.equal(res.footer.querySelector('.sso-bar'), null);
 
-  const section = res.root.querySelector('section');
-  assert.ok(section, 'private section inserted');
-  assert.match(section.textContent, /Private/);
-  const cards = [...section.walk()].filter(n => n.className === 'card');
+  assertOnePrivateSection(res);
+  const cards = privateTiles(res);
   assert.equal(cards.length, 1, 'the javascript: tile is dropped');
   assert.equal(cards[0].querySelector('.card-title').textContent, '<img src=x onerror=alert(1)>');
   assert.equal(cards[0].querySelector('.card-link').href, SECRET.url);
@@ -281,8 +339,8 @@ test('loader: signed out shows the pawn with hub provider links, and no private 
   const res = await runLoader(js, async () => jsonResponse(200, { signed_in: false }));
   assert.deepEqual(res.calls.map(c => c.url), ['/_sso/me']);
   assertSignedOutPawn(pawnOf(res));
-  assert.equal(res.root.querySelector('section'), null);
-  assertPlaceholdersVisible(res);
+  const section = assertNoPrivateTiles(res);
+  assert.match(section.querySelector('h2').textContent, /Private/);
   assert.deepEqual(res.errors, []);
 });
 
@@ -296,9 +354,8 @@ test('loader: hub missing or failing stays on the signed-out pawn', async t => {
   for (const f of failures) {
     const res = await runLoader(js, f);
     assert.deepEqual(res.errors, []);
-    assert.equal(res.root.querySelector('section'), null);
     assertSignedOutPawn(pawnOf(res));
-    assertPlaceholdersVisible(res);
+    assertNoPrivateTiles(res);
   }
 });
 
@@ -309,8 +366,7 @@ test('loader: pawn stays when the build has no private tiles', async t => {
   const signedOut = await runLoader(js, async () => jsonResponse(401, null));
   assert.deepEqual(signedOut.calls.map(c => c.url), ['/_sso/me']);
   assertSignedOutPawn(pawnOf(signedOut));
-  assert.equal(signedOut.root.querySelector('section'), null);
-  assertPlaceholdersVisible(signedOut);
+  assertNoPrivateTiles(signedOut);
   assert.deepEqual(signedOut.errors, []);
 
   const signedIn = await runLoader(js, async () => jsonResponse(200, {
@@ -321,8 +377,7 @@ test('loader: pawn stays when the build has no private tiles', async t => {
   const pawn = pawnOf(signedIn);
   assert.equal(pawn.attributes['data-state'], 'signed-in');
   assert.equal(pawn.querySelector('.pawn-face-filled').textContent, 'AL');
-  assert.equal(signedIn.root.querySelector('section'), null);
-  assertPlaceholdersVisible(signedIn);
+  assertNoPrivateTiles(signedIn);
   assert.deepEqual(signedIn.errors, []);
 });
 
@@ -341,8 +396,7 @@ test('loader: signed in but not allowed (403) keeps the signed-in pawn and skips
   assert.equal(pawn.querySelector('.account-email').textContent, 'b@example.com');
   assert.equal(pawn.querySelector('.account-provider').textContent, 'Signed in with Google');
   assert.equal(pawn.querySelector('button').textContent, 'Sign out');
-  assert.equal(res.root.querySelector('section'), null);
-  assertPlaceholdersVisible(res);
+  assertNoPrivateTiles(res);
 });
 
 test('loader: initials come from the name, else the email local part', async t => {
@@ -361,8 +415,7 @@ test('loader: initials come from the name, else the email local part', async t =
     assert.equal(pawn.querySelector('.account-name').textContent, label);
     assert.equal(pawn.querySelector('.account-email').textContent, me.email);
     assert.equal(pawn.querySelector('.account-provider').textContent, via);
-    assert.equal(res.root.querySelector('section'), null);
-    assertPlaceholdersVisible(res);
+    assertNoPrivateTiles(res);
   }
 });
 
@@ -403,17 +456,38 @@ test('loader: signed in with tiles.json shows Flock Dashboard and Parley and hid
   assert.equal(pawn.attributes['data-state'], 'signed-in');
   assert.equal(pawn.querySelector('.pawn-icon'), null, 'signed-in chip is initials, not the outline');
   assert.equal(pawn.querySelector('.pawn-face-filled').textContent, 'AL');
-  const section = res.root.querySelector('section');
-  assert.ok(section, 'private section inserted');
-  assert.match(section.textContent, /Private/);
-  assert.deepEqual(section.querySelectorAll('.card-title').map(n => n.textContent), ['Flock Dashboard', 'Parley']);
-  assert.deepEqual(section.querySelectorAll('.card-link').map(n => n.href),
+  const section = assertOnePrivateSection(res);
+  assert.match(section.querySelector('h2').textContent, /Private/);
+  const tilesShown = privateTiles(res);
+  assert.deepEqual(tilesShown.map(n => n.querySelector('.card-title').textContent), ['Flock Dashboard', 'Parley']);
+  assert.deepEqual(tilesShown.map(n => n.querySelector('.card-link').href),
     ['https://dash.flock.odinz.net', 'https://github.com/BeachMonkey-AI/parley']);
+  for (const n of tilesShown) assert.equal(n.parentNode, res.privateGrid, 'tile is in the Private grid');
   assertPlaceholdersHidden(res);
   assert.deepEqual(res.errors, []);
 });
 
-test('loader: signed in with an empty tile list leaves placeholders and omits Private', async t => {
+test('loader: with no Private section on the page, signed-in tiles get one fallback section', async t => {
+  const js = loader(t);
+  const flock = {
+    id: 'flock-dashboard', name: 'Flock Dashboard', description: 'd',
+    url: 'https://dash.flock.odinz.net', icon: { emoji: '📊', favicon: 'never' }, status: 'live',
+  };
+  const res = await runLoader(js, async url => (url === '/_sso/me'
+    ? jsonResponse(200, { signed_in: true, email: 'a@example.com', name: 'Ada', provider: 'google', csrf: 'c' })
+    : jsonResponse(200, { version: 1, tiles: [flock] })), { withPrivateSection: false });
+  const sections = res.root.querySelectorAll('section');
+  assert.equal(sections.length, 2, 'Public + one fallback Private section');
+  const fallback = sections[1];
+  assert.equal(fallback.className, 'private-apps');
+  assert.equal(fallback.querySelector('h2').textContent, '🔒 Private');
+  assert.equal(res.body.childNodes[res.body.childNodes.indexOf(res.footer) - 1], fallback, 'just above the footer');
+  assert.deepEqual(fallback.querySelectorAll('.card-title').map(n => n.textContent), ['Flock Dashboard']);
+  assertPublicUntouched(res);
+  assert.deepEqual(res.errors, []);
+});
+
+test('loader: signed in with an empty tile list keeps the one Private section and placeholders, adds no second section', async t => {
   const js = loader(t);
   const res = await runLoader(js, async url => {
     if (url === '/_sso/me') {
@@ -427,7 +501,16 @@ test('loader: signed in with an empty tile list leaves placeholders and omits Pr
   assert.deepEqual(res.calls.map(c => c.url), ['/_sso/me', '/private/tiles.json']);
   const pawn = pawnOf(res);
   assert.equal(pawn.attributes['data-state'], 'signed-in');
-  assert.equal(res.root.querySelector('section'), null);
-  assertPlaceholdersVisible(res);
+  assertNoPrivateTiles(res);
+  assert.deepEqual(res.errors, []);
+});
+
+test('loader: signed in when no tile survives sanitization adds nothing and keeps placeholders', async t => {
+  const js = loader(t);
+  const res = await runLoader(js, async url => (url === '/_sso/me'
+    ? jsonResponse(200, { signed_in: true, email: 'a@example.com', name: 'Ada', provider: 'google', csrf: 'c' })
+    : jsonResponse(200, { version: 1, tiles: [{ ...SECRET, url: 'javascript:alert(1)' }, { name: 'no url' }] })));
+  assert.deepEqual(res.calls.map(c => c.url), ['/_sso/me', '/private/tiles.json']);
+  assertNoPrivateTiles(res);
   assert.deepEqual(res.errors, []);
 });
