@@ -51,6 +51,11 @@
             "favicon": {
               "enum": ["auto", "never"],
               "description": "\"auto\" lets the client-side favicon-swap try to replace the emoji; \"never\" opts out (data-keep-emoji)."
+            },
+            "src": {
+              "type": "string",
+              "pattern": "^/icons/(?!.*\\.\\.)[^?#\\\\]+$",
+              "description": "Optional vendored, same-origin card image, e.g. \"/icons/wodin.svg\". Must start with /icons/, have no \"..\", query or hash, and name a file in the repo's icons/ directory (checked at build time). External URLs are rejected. When set, the card shows this image instead of the emoji and is never favicon-swapped; emoji stays as the documented fallback."
             }
           }
         },

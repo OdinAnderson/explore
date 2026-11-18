@@ -1,14 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import {
   tempDir, runBuild, buildOk, listFiles, read, readApps, writeAppsFixture,
   SECRET, cardsOf, unescapeHtml,
 } from './helpers.mjs';
 
-const SECRET_STRINGS = [SECRET.name, SECRET.url, 'zq7x'];
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const SECRET_STRINGS =[SECRET.name, SECRET.url, 'zq7x'];
 const HUB_MARKERS = ['/_sso/', 'auth.odinz.net', 'pawn.js', 'pawn.css'];
 const FLOCK_NAME = 'Flock Dashboard';
 const FLOCK_URL = 'https://dash.flock.odinz.net';
@@ -17,6 +19,11 @@ const PARLEY_URL = 'https://github.com/BeachMonkey-AI/parley';
 const WODIN_URL = 'https://github.com/BeachMonkey-AI/WODin';
 // Every real private tile's name and url. None may appear outside private/tiles.json.
 const REAL_PRIVATE_STRINGS = [FLOCK_NAME, FLOCK_URL, PARLEY_NAME, PARLEY_URL];
+
+// Leak scans skip image files (the site icons and vendored card icons).
+function isImage(f) {
+  return f.endsWith('.png') || f.endsWith('.svg');
+}
 
 function privateLive(apps) {
   return apps.filter(a => a.visibility === 'authenticated' && a.status !== 'coming-soon');
@@ -32,7 +39,7 @@ function cardClass(app) {
 
 function assertNoRealPrivate(dir, files, label) {
   for (const f of files) {
-    if (f.endsWith('.png')) continue;
+    if (isImage(f)) continue;
     const body = read(dir, f);
     for (const s of REAL_PRIVATE_STRINGS) {
       assert.ok(!body.includes(s), `${label}: ${f} must not contain "${s}"`);
@@ -51,7 +58,7 @@ function assertNoSecrets(dir, files, label) {
 
 function assertNoHub(dir, files, label) {
   for (const f of files) {
-    if (f.endsWith('.png')) continue;
+    if (isImage(f)) continue;
     const body = read(dir, f);
     // sw.js keeps its network-only rule for /_sso/*. That path is not an identity URL.
     const markers = f === 'sw.js'
@@ -61,6 +68,21 @@ function assertNoHub(dir, files, label) {
       assert.ok(!body.includes(s), `${label}: ${f} must not contain "${s}"`);
     }
   }
+}
+
+// The page has one "🔒 Private" section heading, it wraps the Private Tool
+// placeholder, and no section is headed "Sign-in Required". The placeholder's
+// footer tag "Sign-in required" (lower-case r) is a tag, not a heading, and stays.
+function assertOnePrivateSection(html, label) {
+  const headings = [...html.matchAll(/<h2>([^<]*)<\/h2>/g)].map(m => m[1].trim());
+  assert.deepEqual(headings, ['🌐 Public', '🔒 Private'], `${label}: section headings`);
+  assert.ok(!html.includes('Sign-in Required'), `${label}: no "Sign-in Required" heading`);
+  assert.equal(html.match(/<section class="private-apps"/g)?.length, 1, `${label}: one Private section`);
+  const m = html.match(/<section class="private-apps" id="private-apps">\s*<h2>🔒 Private<\/h2>\s*<div class="grid">([\s\S]*?)<\/div>\s*<\/section>/);
+  assert.ok(m, `${label}: Private section has the heading and a grid`);
+  assert.match(m[1], /data-app-id="private-tool"/, `${label}: placeholder sits in the Private section`);
+  assert.match(m[1], /class="card coming-soon private-placeholder"/);
+  assert.match(m[1], /<span class="tag tag-auth">Sign-in required<\/span>/, `${label}: placeholder tag unchanged`);
 }
 
 function loaderScript(html) {
@@ -116,7 +138,7 @@ test('default build with a live private tile: no private data in any file', t =>
 
   const files = listFiles(out);
   assert.ok(!existsSync(path.join(out, 'private')), 'no private dir');
-  assertNoSecrets(out, files.filter(f => !f.endsWith('.png')), 'default build');
+  assertNoSecrets(out, files.filter(f => !isImage(f)), 'default build');
   assertNoRealPrivate(out, files, 'default build');
   assertNoHub(out, files, 'default build');
   // The visible cards are unchanged by adding a private tile.
@@ -134,7 +156,7 @@ test('a default build into a dir that held an oaks build removes private data', 
   buildOk(t, ['--out', out, '--apps', apps]);
   assert.ok(!existsSync(path.join(out, 'private')));
   assert.ok(!existsSync(path.join(out, 'VERSION')));
-  assertNoSecrets(out, listFiles(out).filter(f => !f.endsWith('.png')), 'rebuilt default');
+  assertNoSecrets(out, listFiles(out).filter(f => !isImage(f)), 'rebuilt default');
   assertNoHub(out, listFiles(out), 'rebuilt default');
 });
 
@@ -166,7 +188,7 @@ test('oaks build: the private tile is only in private/tiles.json', t => {
   for (const s of REAL_PRIVATE_STRINGS) {
     assert.ok(!html.includes(s), `index.html has no "${s}"`);
   }
-  assertNoSecrets(out, files.filter(f => f !== 'private/tiles.json' && !f.endsWith('.png')), 'oaks build');
+  assertNoSecrets(out, files.filter(f => f !== 'private/tiles.json' && !isImage(f)), 'oaks build');
 
   // Public cards are the same as the default build's.
   const plain = path.join(dir, 'plain');
@@ -296,7 +318,7 @@ test('oaks loader includes the silent hub hop; the Azure build does not', t => {
   }
 
   for (const f of listFiles(azure)) {
-    if (f.endsWith('.png')) continue;
+    if (isImage(f)) continue;
     const body = read(azure, f);
     for (const s of SILENT_MARKERS) {
       assert.ok(!body.includes(s), `azure ${f} must not contain "${s}"`);
@@ -355,6 +377,7 @@ test('real catalog: Flock Dashboard and Parley are private, WODin and Private To
     for (const s of REAL_PRIVATE_STRINGS) {
       assert.ok(!html.includes(s), `index.html must not contain "${s}"`);
     }
+    assertOnePrivateSection(html, out);
   }
 
   assertNoRealPrivate(azure, listFiles(azure), 'azure');
@@ -381,12 +404,48 @@ test('real catalog: Flock Dashboard and Parley are private, WODin and Private To
   assert.equal(parley.status, 'live');
   assert.match(loaderScript(read(oaks, 'index.html')), /var HAS_PRIVATE = true;/);
   for (const f of listFiles(oaks)) {
-    if (f === 'private/tiles.json' || f.endsWith('.png')) continue;
+    if (f === 'private/tiles.json' || isImage(f)) continue;
     const body = read(oaks, f);
     for (const s of REAL_PRIVATE_STRINGS) {
       assert.ok(!body.includes(s), `oaks ${f} must not contain "${s}"`);
     }
   }
+});
+
+test('WODin card uses the vendored /icons/wodin.svg, not the emoji, in both targets', t => {
+  const dir = tempDir(t);
+  const azure = path.join(dir, 'azure');
+  const oaks = path.join(dir, 'oaks');
+  buildOk(t, ['--out', azure]);
+  buildOk(t, ['--out', oaks, '--target', 'oaks']);
+
+  const wodin = readApps().apps.find(a => a.id === 'wodin');
+  assert.deepEqual(wodin.icon, { emoji: '🏋️', favicon: 'never', src: '/icons/wodin.svg' });
+  const source = readFileSync(path.join(ROOT, 'icons', 'wodin.svg'));
+
+  for (const [label, out] of [['azure', azure], ['oaks', oaks]]) {
+    const html = read(out, 'index.html');
+    const card = html.match(/<div class="card"([^>]*)>\s*<a class="card-link" href="https:\/\/github\.com\/BeachMonkey-AI\/WODin"[^>]*>\s*<div class="card-icon">([\s\S]*?)<\/div>/);
+    assert.ok(card, `${label}: WODin card found`);
+    assert.match(card[1], /\bdata-keep-emoji\b/, `${label}: WODin card keeps its icon (no favicon swap)`);
+    assert.equal(card[2], '<img class="card-favicon" src="/icons/wodin.svg" alt="">', `${label}: card icon is the vendored image`);
+    assert.ok(!card[2].includes('🏋'), `${label}: no weightlifter emoji in the card icon`);
+    assert.ok(!card[2].includes('card-icon-emoji'), `${label}: no emoji span`);
+
+    assert.ok(listFiles(out).includes('icons/wodin.svg'), `${label}: icons/wodin.svg is emitted`);
+    assert.ok(readFileSync(path.join(out, 'icons', 'wodin.svg')).equals(source), `${label}: icon bytes unchanged`);
+
+    const shell = read(out, 'sw.js').match(/const SHELL\s*=\s*\[([\s\S]*?)\];/)[1];
+    assert.match(shell, /'\/icons\/wodin\.svg'/, `${label}: sw.js SHELL caches the WODin icon`);
+  }
+
+  // The Azure build still carries no private names/URLs, no private dir, no loader, no pawn.
+  const files = listFiles(azure);
+  assertNoRealPrivate(azure, files, 'azure');
+  assertNoHub(azure, files, 'azure');
+  assert.ok(!existsSync(path.join(azure, 'private')));
+  assert.equal(loaderScript(read(azure, 'index.html')), null);
+  assert.ok(!read(azure, 'index.html').includes('explore-pawn'));
 });
 
 test('archived private tiles are private too', t => {
@@ -455,6 +514,13 @@ test('schema validation rejects bad entries', async t => {
     ['bad visibility', [{ ...good, visibility: 'secret' }], /invalid visibility/],
     ['bad favicon', [{ ...good, icon: { emoji: 'x', favicon: 'maybe' } }], /icon\.favicon/],
     ['bad repo', [{ ...good, repo: 'no-slash' }], /invalid repo/],
+    ['external icon src', [{ ...good, icon: { ...good.icon, src: 'https://raw.githubusercontent.com/x/y/main/icon.svg' } }], /icon\.src must be a path starting with \/icons\//],
+    ['protocol-relative icon src', [{ ...good, icon: { ...good.icon, src: '//evil.example/icon.svg' } }], /icon\.src must be a path starting with \/icons\//],
+    ['icon src outside /icons/', [{ ...good, icon: { ...good.icon, src: '/index.html' } }], /icon\.src must be a path starting with \/icons\//],
+    ['icon src with ..', [{ ...good, icon: { ...good.icon, src: '/icons/../apps.json' } }], /icon\.src must not contain "\.\."/],
+    ['icon src with a query', [{ ...good, icon: { ...good.icon, src: '/icons/wodin.svg?v=1' } }], /icon\.src must not have a query or hash/],
+    ['icon src with a hash', [{ ...good, icon: { ...good.icon, src: '/icons/wodin.svg#x' } }], /icon\.src must not have a query or hash/],
+    ['icon src names no file', [{ ...good, icon: { ...good.icon, src: '/icons/missing.svg' } }], /icon\.src names no file under icons\//],
     ['bad date', [{ ...good, added: '2026/01/01' }], /invalid added date/],
     ['null entry', [null], /must be an object/],
   ];

@@ -14,6 +14,7 @@ const SHELL   = [
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/icons/wodin.svg',
 ];
 
 // Never served from or written to a cache: private tiles sit behind the sign-in

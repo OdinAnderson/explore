@@ -73,7 +73,7 @@
       "description": "Workout display tool — turns a planned workout into a phone page the athlete logs against.",
       "url": "https://github.com/BeachMonkey-AI/WODin",
       "repo": "BeachMonkey-AI/WODin",
-      "icon": { "emoji": "🏋️", "favicon": "auto" },
+      "icon": { "emoji": "🏋️", "favicon": "never", "src": "/icons/wodin.svg" },
       "tags": ["fitness", "workout"],
       "status": "live",
       "visibility": "public",

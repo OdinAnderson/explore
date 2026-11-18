@@ -17,7 +17,7 @@
 // Environment equivalents: EXPLORE_TARGET, EXPLORE_OUT, EXPLORE_APPS,
 //   EXPLORE_VERSION_TAG, EXPLORE_VERSION_COMMIT, EXPLORE_VERSION_BUILT_AT.
 // Flags win over environment variables.
-import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync, rmSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -73,6 +73,22 @@ function readOptions(argv, env) {
 }
 
 // ── Minimal hand-rolled validation (zero-dependency, no ajv) ────────────────
+// icon.src is an optional vendored, same-origin card image: a path under
+// /icons/ naming a file that exists in the repo's icons/ directory. External
+// URLs, "..", queries and hashes are rejected. Returns an error or null.
+function iconSrcError(src) {
+  if (typeof src !== 'string' || !src.startsWith('/icons/')) return 'must be a path starting with /icons/';
+  if (src.includes('..')) return 'must not contain ".."';
+  if (/[?#]/.test(src)) return 'must not have a query or hash';
+  if (/[\\\0]|\/\//.test(src)) return 'must be a plain /icons/ path';
+  const iconsDir = path.join(ROOT, 'icons');
+  const file = path.join(iconsDir, ...src.slice('/icons/'.length).split('/'));
+  if (!file.startsWith(iconsDir + path.sep) || !existsSync(file) || !statSync(file).isFile()) {
+    return `names no file under icons/ (${src})`;
+  }
+  return null;
+}
+
 function validate(data) {
   const errors = [];
   const req = (cond, msg) => { if (!cond) errors.push(msg); };
@@ -103,6 +119,10 @@ function validate(data) {
     req(app.repo === null || (typeof app.repo === 'string' && /^[^/]+\/[^/]+$/.test(app.repo)), `${at}: invalid repo`);
     req(app.icon && typeof app.icon.emoji === 'string', `${at}: missing icon.emoji`);
     req(['auto', 'never'].includes(app.icon?.favicon), `${at}: icon.favicon must be "auto" or "never"`);
+    if (app.icon && app.icon.src !== undefined) {
+      const err = iconSrcError(app.icon.src);
+      req(!err, `${at}: icon.src ${err}`);
+    }
     req(Array.isArray(app.tags), `${at}: tags must be an array`);
     req(['live', 'coming-soon', 'archived'].includes(app.status), `${at}: invalid status`);
     req(['public', 'authenticated'].includes(app.visibility), `${at}: invalid visibility`);
@@ -126,7 +146,12 @@ function renderCard(app) {
   // tiles. The oaks loader hides .private-placeholder only after those tiles
   // have actually rendered.
   const privatePlaceholder = comingSoon && app.visibility === 'authenticated';
-  const keepEmoji = app.icon.favicon === 'never';
+  // A vendored icon.src replaces the emoji and must never be favicon-swapped.
+  const iconSrc = app.icon.src;
+  const keepEmoji = app.icon.favicon === 'never' || Boolean(iconSrc);
+  const iconInner = iconSrc
+    ? `<img class="card-favicon" src="${escapeHtml(iconSrc)}" alt="">`
+    : `<span class="card-icon-emoji">${escapeHtml(app.icon.emoji)}</span>`;
   const cardClass = ['card', comingSoon && 'coming-soon', privatePlaceholder && 'private-placeholder']
     .filter(Boolean)
     .join(' ');
@@ -146,7 +171,7 @@ function renderCard(app) {
 
   return `      <div class="${cardClass}"${keepEmojiAttr}${appIdAttr}>
         <a class="card-link" ${linkAttrs}>
-          <div class="card-icon"><span class="card-icon-emoji">${escapeHtml(app.icon.emoji)}</span></div>
+          <div class="card-icon">${iconInner}</div>
           <div class="card-title">${escapeHtml(app.name)}</div>
           <div class="card-desc">${escapeHtml(app.description)}</div>
         </a>
@@ -562,15 +587,23 @@ function renderOaksLoader(hasPrivate) {
       var tiles = data && Array.isArray(data.tiles) ? data.tiles : [];
       var cards = tiles.map(card).filter(Boolean);
       if (!cards.length) return;
-      var f = footer();
-      if (!f || !f.parentNode) return;
-      var section = el('section');
-      section.id = 'private-apps';
-      section.appendChild(el('h2', null, '\\ud83d\\udd12 Private'));
-      var grid = el('div', 'grid');
+      // Reuse the page's one Private section (it already holds the
+      // placeholder). Only build a section if the page lacks one.
+      var section = document.querySelector('.private-apps');
+      if (!section) {
+        var f = footer();
+        if (!f || !f.parentNode) return;
+        section = el('section', 'private-apps');
+        section.id = 'private-apps';
+        section.appendChild(el('h2', null, '\\ud83d\\udd12 Private'));
+        f.parentNode.insertBefore(section, f);
+      }
+      var grid = section.querySelector('.grid');
+      if (!grid) {
+        grid = el('div', 'grid');
+        section.appendChild(grid);
+      }
       cards.forEach(function (c) { grid.appendChild(c); });
-      section.appendChild(grid);
-      f.parentNode.insertBefore(section, f);
       hidePrivatePlaceholders();
     }
 
