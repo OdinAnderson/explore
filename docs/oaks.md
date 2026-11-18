@@ -3,7 +3,8 @@
 Explore is live on Azure Static Web Apps at **explore.odinz.net**, deployed from
 `main` by GitHub Actions. A second copy is being prepared on Odin's server
 **oaks**, served by Caddy at the temporary name **explore-new.odinz.net**. That
-copy adds private tiles behind the sign-in hub at **auth.odinz.net**.
+copy adds private tiles behind the sign-in hub at **auth.odinz.net**. Sign in
+once at the hub; Explore checks the hub silently.
 
 Both sites are built from the same repo by `scripts/build.mjs`; only the build
 target differs.
@@ -50,8 +51,9 @@ In `apps.json`, `"visibility": "authenticated"` marks a tile as needing sign-in.
   the public page exactly as before, in the "Sign-in Required" section when
   authenticated. It carries no real data. Authenticated coming-soon cards
   carry `class="private-placeholder"` and `data-app-id`. The oaks loader hides
-  those cards only after at least one private tile has been shown. Signed out,
-  a failed `/_sso/me`, or a missing, forbidden, or empty tile list leaves the
+  those cards only after at least one private tile has been shown. Signed out
+  (including after a silent hub check that finds no session), a failed
+  `/_sso/me`, or a missing, forbidden, or empty tile list leaves the
   placeholder on the page.
 - **Public tile**: `visibility: "public"`. Renders in the public page.
 
@@ -106,9 +108,25 @@ The loader uses the same class names as the hub: `id-anchor`, `pawn-btn`,
 5. A 403 on the tile list, a missing file, or an empty list leaves the
    signed-in pawn, omits the Private section, and leaves the placeholder
    visible.
-6. If `/_sso/me` is missing, fails, or returns non-JSON: the page stays on
-   the signed-out pawn and the public tiles, including the placeholder. The
-   footer has no "Sign in" link.
+6. If `signed_in` is false, Explore checks the hub silently. Sign in once at
+   the hub and this page picks that session up.
+   - `sso=none` on the URL means the hub has no session. The loader stores
+     `sessionStorage` key `edgeauth-sso-checked` (the time of the check),
+     removes `sso=none` with `history.replaceState` (other query parameters
+     and the hash stay), and stays signed out.
+   - If `edgeauth-sso-checked` is already set and less than 10 minutes old,
+     the loader stays signed out.
+   - Otherwise it stores that key first, then replaces the page with
+     `https://auth.odinz.net/login?silent=1&rd=<current URL>`. The return URL
+     does not include `sso=none`. A hub session comes back through
+     `/_sso/callback`, which sets the site cookie. No hub session comes back
+     here with `sso=none`.
+   - If `sessionStorage` is unavailable, the loader stays on the page. The
+     stamp is written before the hop, so a hub that cannot bounce back cannot
+     reload this page forever.
+7. If `/_sso/me` is missing, fails, or returns non-JSON: the page stays on
+   the signed-out pawn and the public tiles, including the placeholder. It
+   does not hop. The footer has no "Sign in" link.
 
 The cards are built with `createElement`, `textContent` and `setAttribute`,
 never `innerHTML`. Links must be `http(s)://` or a site path (`/…`); anything
@@ -150,7 +168,10 @@ script checks for it). It must:
   is part of the login handoff. The pawn's button says "Sign out". No new
   Caddy route is required for the pawn: the stylesheet and script load from
   `https://auth.odinz.net/static/`, and the sign-in links go to the hub's
-  `/oauth/login/microsoft` and `/oauth/login/google`;
+  `/oauth/login/microsoft` and `/oauth/login/google`. No new Caddy route is
+  required for the silent check: the browser goes to
+  `https://auth.odinz.net/login?silent=1&rd=<this page>`, and the hub either
+  returns through `/_sso/callback` or straight back with `sso=none`;
 - protect `/private/*` with `forward_auth` to the hub: a signed-out navigation
   gets a 302 to `https://auth.odinz.net/login?rd=<this URL>`, a signed-out
   fetch (`Accept: application/json`) gets 401, signed in but not allowed gets
