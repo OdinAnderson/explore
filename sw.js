@@ -2,6 +2,7 @@
  *
  * Strategy:
  *   Landing page + shell assets → Cache-first, refresh in background (stale-while-revalidate)
+ *   Private + sign-in paths      → Network-only, never cached (/private/*, /_sso/*, /healthz, /VERSION)
  *   Experiment pages (/apps/*)  → Network-first, fall back to cache
  *   Everything else              → Network-first, fall back to cache
  *   Offline                      → Serve cached landing page if available
@@ -15,6 +16,14 @@ const SHELL   = [
   '/icons/icon-512.png',
 ];
 
+// Never served from or written to a cache: private tiles sit behind the sign-in
+// hub, and sign-in state must always come from the network.
+function isNetworkOnly(pathname) {
+  return pathname === '/private' || pathname.startsWith('/private/')
+      || pathname === '/_sso' || pathname.startsWith('/_sso/')
+      || pathname === '/healthz' || pathname === '/VERSION';
+}
+
 // ── Install: pre-cache the shell ──────────────────────────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -23,11 +32,15 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// ── Activate: clean up old caches ────────────────────────────────────────────
+// ── Activate: clean up old caches and any cached private/sign-in entries ─────
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => caches.open(CACHE)).then(cache =>
+      cache.keys().then(requests => Promise.all(requests
+        .filter(r => isNetworkOnly(new URL(r.url).pathname))
+        .map(r => cache.delete(r))))
     )
   );
   self.clients.claim();
@@ -40,6 +53,9 @@ self.addEventListener('fetch', event => {
 
   // Only handle same-origin GET requests
   if (request.method !== 'GET' || url.origin !== location.origin) return;
+
+  // Private tiles, sign-in hub, health/version → straight to the network
+  if (isNetworkOnly(url.pathname)) return;
 
   // Shell / landing page → stale-while-revalidate
   if (url.pathname === '/' || SHELL.includes(url.pathname)) {

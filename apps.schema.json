@@ -35,7 +35,7 @@
         "url": {
           "type": "string",
           "minLength": 1,
-          "description": "Absolute URL, or \"#\" for a status:coming-soon placeholder with nothing live yet."
+          "description": "Absolute http(s) URL (or a /site path), or \"#\" for a status:coming-soon placeholder with nothing live yet. The build rejects other schemes for live/archived entries."
         },
         "repo": {
           "type": ["string", "null"],
@@ -58,7 +58,7 @@
         "status": { "enum": ["live", "coming-soon", "archived"] },
         "visibility": {
           "enum": ["public", "authenticated"],
-          "description": "Drives tag colour and section placement. Presentation only — Explore doesn't host or gate the apps."
+          "description": "\"authenticated\" with status live/archived makes the tile private: never in the public index.html, only in the oaks build's private/tiles.json behind the sign-in hub. coming-soon entries render publicly as placeholders whatever the visibility. Explore gates the tile, not the linked app."
         },
         "added": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
         "updated": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
