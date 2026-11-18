@@ -5,7 +5,7 @@ AI experiments hosted at [explore.odinz.net](https://explore.odinz.net).
 
 Live on **Azure Static Web Apps** (Free tier) at explore.odinz.net — global CDN, free SSL, auto-deploy from `main` via GitHub Actions.
 
-A self-hosted copy is being prepared on Odin's server **oaks**, behind Caddy at **explore-new.odinz.net**, with private tiles behind the sign-in hub at auth.odinz.net. See [docs/oaks.md](docs/oaks.md). explore.odinz.net stays on Azure until its DNS moves.
+A self-hosted copy is being prepared on Odin's server **oaks**, behind Caddy at **explore-new.odinz.net**, with private tiles behind the sign-in hub at auth.odinz.net. Sign in once at the hub; Explore checks that session silently. See [docs/oaks.md](docs/oaks.md). explore.odinz.net stays on Azure until its DNS moves.
 
 ---
 
@@ -49,7 +49,7 @@ For a server-side app on Azure, `.github/workflows/_container-template.yml` is a
 
 ### Making an experiment private
 
-**Private tiles (oaks).** Set `"visibility": "authenticated"` on a `live` or `archived` entry in `apps.json`. The tile then never appears in the public `index.html` on either site. The oaks build puts it in `private/tiles.json`, which Caddy serves only behind `forward_auth` to the sign-in hub; signed-in, allowed visitors see it in a "Private" section. The Azure build contains no trace of it. `coming-soon` entries render publicly as placeholders whatever their visibility. The private tiles are **Flock Dashboard** (`https://dash.flock.odinz.net`) and **Parley** (`https://github.com/BeachMonkey-AI/parley`); the Azure/default build contains neither private name nor either private URL. **WODin** is a public tile linking to its GitHub repo (`https://github.com/BeachMonkey-AI/WODin`). **Private Tool** remains the public coming-soon placeholder; the oaks loader hides that placeholder only after private tiles have rendered for a signed-in visitor. Details and the security model: [docs/oaks.md](docs/oaks.md#private-tiles).
+**Private tiles (oaks).** Set `"visibility": "authenticated"` on a `live` or `archived` entry in `apps.json`. The tile then never appears in the public `index.html` on either site. The oaks build puts it in `private/tiles.json`, which Caddy serves only behind `forward_auth` to the sign-in hub; signed-in, allowed visitors see it in a "Private" section. Sign in once at the hub; Explore checks the hub silently, so a session already on the hub shows up here. The Azure build contains no trace of it. `coming-soon` entries render publicly as placeholders whatever their visibility. The private tiles are **Flock Dashboard** (`https://dash.flock.odinz.net`) and **Parley** (`https://github.com/BeachMonkey-AI/parley`); the Azure/default build contains neither private name nor either private URL. **WODin** is a public tile linking to its GitHub repo (`https://github.com/BeachMonkey-AI/WODin`). **Private Tool** remains the public coming-soon placeholder; the oaks loader hides that placeholder only after private tiles have rendered for a signed-in visitor. Details and the security model: [docs/oaks.md](docs/oaks.md#private-tiles).
 
 This hides the tile from the sites, not the app it links to (the app must protect itself) and not the `apps.json` entry from anyone who can read this repository.
 

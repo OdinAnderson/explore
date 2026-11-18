@@ -223,7 +223,9 @@ function renderOaksLoader(hasPrivate) {
   // /private/tiles.json (behind forward_auth). Once those tiles are on the
   // page, authenticated coming-soon placeholders are hidden. Fails quietly:
   // on any /_sso/me error the page stays on the signed-out pawn and the
-  // public tiles, including the placeholder.
+  // public tiles, including the placeholder. A successful signed-out answer
+  // may hop once to the hub's silent login so a session from another site
+  // shows up here. A failed /_sso/me does not hop.
   (function () {
     var HAS_PRIVATE = ${hasPrivate ? 'true' : 'false'};
     var HUB = 'https://auth.odinz.net';
@@ -243,11 +245,83 @@ function renderOaksLoader(hasPrivate) {
       return (/^https?:\\/\\//i.test(u) || /^\\/(?!\\/)/.test(u)) ? u : null;
     }
     function svgEl(tag) { return document.createElementNS(SVGNS, tag); }
-    function currentUrl() {
+    function pageHref() {
       try {
         if (typeof location !== 'undefined' && location && typeof location.href === 'string') return location.href;
       } catch (e) { /* quiet */ }
       return '';
+    }
+    // Drop query parameter sso=none. The hub appends it when there is no
+    // session; a return URL that still carries it would look already answered.
+    // Plain string parsing, no URL global: works wherever location.href does.
+    // Other parameters and the hash are kept as they were.
+    function withoutSsoNone(href) {
+      if (typeof href !== 'string' || !href) return '';
+      var hashAt = href.indexOf('#');
+      var hash = hashAt >= 0 ? href.slice(hashAt) : '';
+      var rest = hashAt >= 0 ? href.slice(0, hashAt) : href;
+      var qAt = rest.indexOf('?');
+      if (qAt < 0) return href;
+      var parts = rest.slice(qAt + 1).split('&');
+      var kept = [];
+      var found = false;
+      for (var i = 0; i < parts.length; i++) {
+        if (parts[i] === 'sso=none') found = true;
+        else if (parts[i] !== '') kept.push(parts[i]);
+      }
+      if (!found) return href;
+      return rest.slice(0, qAt) + (kept.length ? '?' + kept.join('&') : '') + hash;
+    }
+    function currentUrl() {
+      return withoutSsoNone(pageHref());
+    }
+    function hasSsoNone() {
+      var href = pageHref();
+      return !!href && withoutSsoNone(href) !== href;
+    }
+    function stripSsoNone() {
+      try {
+        history.replaceState(history.state, '', withoutSsoNone(pageHref()));
+      } catch (e) { /* keep the current URL */ }
+    }
+    function stampIsFresh(stored, now) {
+      if (stored == null || stored === '') return false;
+      var stamped = Number(stored);
+      if (stamped !== stamped) return false;
+      return (now - stamped) < 10 * 60 * 1000;
+    }
+    // Loop safety: write edgeauth-sso-checked before the silent hop. If
+    // sessionStorage is missing or throws, stay here. A hub that shows its
+    // sign-in page instead of bouncing back must not reload forever.
+    // sso=none, or a stamp under 10 minutes old, also stays.
+    function considerSilentHub() {
+      var key = 'edgeauth-sso-checked';
+      var stored = null;
+      var storageOk = false;
+      try {
+        stored = sessionStorage.getItem(key);
+        storageOk = true;
+      } catch (e) {
+        storageOk = false;
+      }
+      var now = Date.now();
+      if (hasSsoNone()) {
+        if (storageOk) {
+          try { sessionStorage.setItem(key, String(now)); } catch (e) { /* do not hop */ }
+        }
+        stripSsoNone();
+        return;
+      }
+      if (!storageOk) return;
+      if (stampIsFresh(stored, now)) return;
+      try {
+        sessionStorage.setItem(key, String(now));
+      } catch (e) {
+        return;
+      }
+      try {
+        location.replace(HUB + '/login?silent=1&rd=' + encodeURIComponent(currentUrl()));
+      } catch (e) { /* stay signed out */ }
     }
     // Two letters from the name, else the email's local part. Upper case.
     // Same split as the hub's pawn.py initials().
@@ -503,11 +577,15 @@ function renderOaksLoader(hasPrivate) {
     var pawn = mount();
     if (typeof fetch !== 'function' || !pawn) return;
     getJson('/_sso/me').then(function (me) {
-      if (!me || me.signed_in !== true) return;
-      applySignedIn(pawn, me);
-      if (!HAS_PRIVATE) return;
-      return getJson('/private/tiles.json').then(showTiles);
-    }).catch(function () { /* stay on the signed-out pawn */ });
+      if (me && me.signed_in === true) {
+        applySignedIn(pawn, me);
+        if (!HAS_PRIVATE) return;
+        return getJson('/private/tiles.json').then(showTiles);
+      }
+      // HTTP errors and non-JSON become null in getJson. Only a real
+      // signed-out answer may hop.
+      if (me && me.signed_in === false) considerSilentHub();
+    }).catch(function () { /* stay on the signed-out pawn; do not hop */ });
   }());
   </script>
   <script src="https://auth.odinz.net/static/pawn.js" defer></script>
