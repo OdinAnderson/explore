@@ -4,9 +4,10 @@
 // assembles the static site into an output directory (dist/ by default).
 //
 // Targets:
-//   azure (default)  What the Azure Static Web App deploys. Public data only:
-//                    no private tiles, no sign-in loader, no private/ dir.
-//   oaks             The self-hosted copy behind Caddy on oaks. Adds the
+//   azure (default)  The public, catalog-only build (`npm run build`, CI).
+//                    Public data only: no private tiles, no sign-in loader,
+//                    no private/ dir. (The name is historical.)
+//   oaks             The live site behind Caddy on oaks (deploy/deploy.sh). Adds the
 //                    header pawn and sign-in loader to index.html and writes
 //                    private tiles to private/tiles.json (served only behind
 //                    forward_auth). Writes VERSION when a version tag is given.
