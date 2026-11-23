@@ -1,0 +1,28 @@
+name: CI
+
+# Tests only. This workflow does not deploy anywhere.
+# Explore is deployed to oaks by hand: merge, tag vYYYY.MM.DD-N, then
+# `bash deploy/deploy.sh <tag>` (see docs/oaks.md).
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Test (builds both targets)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm test
+        run: npm test

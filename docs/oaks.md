@@ -1,20 +1,22 @@
 # Hosting explore on oaks
 
-Explore is live on Azure Static Web Apps at **explore.odinz.net**, deployed from
-`main` by GitHub Actions. A second copy is being prepared on Odin's server
-**oaks**, served by Caddy at the temporary name **explore-new.odinz.net**. That
-copy adds private tiles behind the sign-in hub at **auth.odinz.net**. Sign in
-once at the hub; Explore checks the hub silently.
+Explore is live on Odin's server **oaks** at **explore.odinz.net**, served by
+Caddy. **explore-new.odinz.net** is an alias of the same site. Private tiles sit
+behind the sign-in hub at **auth.odinz.net**. Sign in once at the hub; Explore
+checks the hub silently.
 
-Both sites are built from the same repo by `scripts/build.mjs`; only the build
-target differs.
+It is deployed by hand with `deploy/deploy.sh` (see [Deploy](#deploy)). The
+GitHub Actions CI workflow only runs `npm test`; it does not deploy.
+
+`scripts/build.mjs` has two targets: `oaks`, the live site, and `azure`, the
+public catalog-only build (the name is historical).
 
 ## Build targets
 
 | | `azure` (default) | `oaks` |
 |---|---|---|
 | Command | `node scripts/build.mjs` | `node scripts/build.mjs --target oaks` (or `EXPLORE_TARGET=oaks`) |
-| Used by | the Azure SWA workflow | `deploy/deploy.sh` |
+| Used by | `npm run build`, `npm test` and CI (public catalog-only; not deployed) | `deploy/deploy.sh` (`npm run build:oaks`) |
 | Public cards in `index.html` | yes | yes, identical |
 | Header pawn and sign-in loader in `index.html` | no | yes |
 | `private/tiles.json`, `private/index.html` | never written | written |
@@ -64,8 +66,8 @@ repo `OdinAnderson/edge-dashboard`, 📊) and **Parley**
 Both use `favicon: "never"`, so the cards do not send their hostnames to a
 favicon service. **Private Tool** remains the public coming-soon placeholder.
 **WODin** is a public tile linking to its GitHub repo,
-`https://github.com/BeachMonkey-AI/WODin`. The Azure/default build contains
-neither private name nor either private URL.
+`https://github.com/BeachMonkey-AI/WODin`. The catalog-only/default build
+contains neither private name nor either private URL.
 
 `private/tiles.json` holds the card fields as raw JSON
 (`id, name, description, url, repo, icon, tags, status`). `private/index.html`
@@ -79,7 +81,7 @@ The oaks `index.html` loads the shared pawn from the hub
 and carries a small inline script (`#explore-sso-loader`). The pawn is a slim
 control in a header just above the ASCII hero. The figlet wordmark stays.
 The pawn is always there, including when this build has no private tiles.
-The Azure build has neither the pawn nor the loader.
+The `azure` (catalog-only) build has neither the pawn nor the loader.
 
 `pawn.js` only opens and closes the `<details data-pawn>` the loader rendered
 (Escape, click or pointer outside, `aria-expanded`). It does not write markup.
@@ -149,7 +151,7 @@ pawn.
 - The private data exists in exactly one file, `private/tiles.json`, on oaks
   only. Caddy serves `/private/*` only after `forward_auth` to the hub allows
   the request. The page script is a convenience, not the gate.
-- The Azure build never contains private data: no `private/` dir, no names or
+- The `azure` (catalog-only) build never contains private data: no `private/` dir, no names or
   URLs of private tiles in any file, no loader, no pawn, and no
   `auth.odinz.net` URL. Tests check this with a fixture that has a live
   private tile.
@@ -248,8 +250,7 @@ reused as is; otherwise it is rebuilt from the tag and installed. Either way
 
 ## Cutover
 
-`explore.odinz.net` stays on Azure until its DNS moves to oaks. When it does,
-add `explore.odinz.net` to the Caddy site block and deploy with
-`EXPLORE_HOSTNAME=explore.odinz.net`. The Azure Static Web App is kept after the
-cutover, still deploying from `main`, and stays reachable at its
-`*.azurestaticapps.net` address.
+Done. `explore.odinz.net` is served from oaks; `explore-new.odinz.net` is an
+alias of the same site. The Azure Static Web App has been decommissioned: there
+is no SWA left at a `*.azurestaticapps.net` address, and no workflow deploys to
+Azure.
